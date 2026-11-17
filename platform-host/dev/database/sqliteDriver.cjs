@@ -10,7 +10,7 @@ function sqliteDriver(root){
   file,close:async scope=>{validateScope(scope);},
   fork:async(source,target)=>{
    if(source!==null)validateScope(source);
-   if(source&&(source.company!==target.company||source.user!==target.user))throw Error('Cross-tenant data copy');const destination=file(target);fs.mkdirSync(path.dirname(destination),{recursive:true});try{fs.closeSync(fs.openSync(destination,'wx'));}catch(error){if(error.code==='EEXIST')throw Error('Generation already exists');throw error;}
+   if(source&&(source.company!==target.company||source.user!==target.user))throw Error('Cross-tenant data copy');const destination=file(target);fs.mkdirSync(path.dirname(destination),{recursive:true});if(!source&&!fs.existsSync(destination)&&fs.readdirSync(path.dirname(destination)).length)throw Error('Retained subject data requires recovery');try{fs.closeSync(fs.openSync(destination,'wx'));}catch(error){if(error.code==='EEXIST')throw Error('Generation already exists');throw error;}
    if(source){if(source.company!==target.company||source.user!==target.user)throw Error('Cross-tenant data copy');const db=new DatabaseSync(file(source),{readOnly:true});try{if(db.prepare('PRAGMA user_version').get().user_version!==1)throw Error('Unknown physical database version');await backup(db,destination);}finally{db.close();}}
    const db=new DatabaseSync(destination);try{db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS module_schema(module TEXT PRIMARY KEY,version INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS records(module TEXT NOT NULL,collection TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL CHECK(revision>0),payload TEXT NOT NULL,PRIMARY KEY(module,collection,id)); PRAGMA user_version=1;');}finally{db.close();}
   },

@@ -53,4 +53,13 @@ class SubjectDatabaseTest{
   assertThrows(Exception::class.java){run(engine,"schema",scope(generation="future"),JSONObject().put("module","orders"))};assertTrue(future.exists())
   assertThrows(Exception::class.java){run(engine,"schema",scope(generation="missing"),JSONObject().put("module","orders"))};assertFalse(File(root,"alpha/alice/missing.sqlite").exists())
  }
+ @Test fun lostBootstrapPointerCannotCreateAnEmptyReplacement()=fixture{engine,root->
+  run(engine,"write",scope(),batch(1,null,change("drafts","draft","{\"text\":\"retained\"}")))
+  val missing=scope(generation="empty-reset")
+  assertThrows(Exception::class.java){run(engine,"fork",missing)}
+  assertFalse(File(root,"alpha/alice/empty-reset.sqlite").exists())
+  val read=JSONObject().put("module","orders").put("schema",1).put("collection","drafts").put("id","draft")
+  assertEquals("retained",JSONObject(JSONObject(run(engine,"read",scope(),read)).getString("payload")).getString("text"))
+ }
+
 }

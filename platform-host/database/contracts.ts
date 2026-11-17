@@ -6,6 +6,7 @@ export type WriteReceipt={collection:string;id:string;revision:number|null};
 export type DataBatch={module:string;expectedSchema:number;targetSchema?:number;changes:RawChange[]};
 export interface DataDriver{
   close(scope:DataScope):Promise<void>;
+  /** Null source is first installation ONLY: retained account generations must trigger recovery, never empty reset. */
   fork(source:DataScope|null,target:DataScope):Promise<void>;
   schema(scope:DataScope,module:string):Promise<number>;
   read(scope:DataScope,module:string,schema:number,collection:string,id:string):Promise<DataRow|null>;

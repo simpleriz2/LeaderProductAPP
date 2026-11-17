@@ -31,7 +31,11 @@ export function createIndexedDbDriver(factory:IDBFactory=globalThis.indexedDB):D
       await transaction<void>('readwrite',(tx,done,fail)=>request(tx.objectStore('generations'),key(target),existing=>{
         if(existing)throw Error('Generation already exists');
         const initialize=()=>{tx.objectStore('generations').put({physical:1},key(target));done();};
-        if(!source){initialize();return;}
+        if(!source){
+          // A lost bootstrap pointer must not silently turn retained drafts into an empty new account.
+          const count=tx.objectStore('generations').count(range([target.company,target.user]));
+          count.onsuccess=()=>{try{if(count.result!==0)throw Error('Retained subject data requires recovery');initialize();}catch(error){fail(error);}};return;
+        }
         generation(tx,source,()=>{
           for(const name of ['schemas','rows']){const store=tx.objectStore(name);const cursor=store.openCursor(range(key(source)));cursor.onsuccess=()=>{try{const current=cursor.result;if(!current)return;const original=current.key as IDBValidKey[];store.put(current.value,[...key(target),...original.slice(3)]);current.continue();}catch(error){fail(error);}};}
           initialize();

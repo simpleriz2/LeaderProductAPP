@@ -31,3 +31,7 @@ test('browser generation copy/migrations preserve source and quota failure canno
   return{source:await drafts.get('one'),migrated:await d.driver.read(target,'orders',2,'drafts','one'),rejected,missing};});
  assert.equal(state.source.revision,1);assert.equal(state.source.value.extra,undefined);assert.equal(JSON.parse(state.migrated.payload).extra,'schema2');assert.equal(state.rejected,true);assert.equal(state.missing,true);
 });
+
+test('lost bootstrap pointer cannot silently initialize an empty generation over retained account data',async t=>{
+ const f=await browserFixture(t,setup),page=await f.open();const result=await page.evaluate(async()=>{const d=globalThis.d;const orders=d.session.module('orders'),drafts=orders.collection('drafts',d.codec);await orders.transaction([drafts.put('kept',{text:'unsent after pointer loss'},null)]);const target={...d.scope,generation:'empty-reset'};let denied=false;try{await d.driver.fork(null,target);}catch(error){denied=error.message.includes('Retained subject data requires recovery');}let absent=false;try{await d.driver.verify(target,{});}catch{absent=true;}await d.driver.verify(d.scope,{orders:1,help:1});return{denied,absent,draft:(await drafts.get('kept')).value.text};});assert.deepEqual(result,{denied:true,absent:true,draft:'unsent after pointer loss'});
+});

@@ -76,3 +76,10 @@ test('same-schema and stateless releases reuse verified data without deleting re
  const stateless={company:'alpha',artifacts:[{module:'orders',schema:0},{module:'help',schema:1}]};assert.equal(await prepareDataGeneration(f.driver,f.lease,stateless,previous,owners(),noCopy),f.scope.generation);assert.equal((await drafts.get('one')).value.text,'retained');
  const {schemasForRelease}=require('../../database/migrations.ts');assert.deepEqual(schemasForRelease(stateless),{help:1});
 });
+
+test('missing bootstrap source cannot initialize empty generation over retained drafts',async t=>{
+ const f=await fixture(t);const drafts=f.session.module('orders').collection('drafts',codec);await f.session.module('orders').transaction([drafts.put('kept',{text:'unsent after pointer loss'},null)]);const next={...f.scope,generation:'empty-reset'};
+ await assert.rejects(f.driver.fork(null,next),/Retained subject data requires recovery/);
+ assert.equal(fs.existsSync(f.driver.file(next)),false);
+ await f.driver.verify(f.scope,{orders:1,help:1});assert.equal((await drafts.get('kept')).value.text,'unsent after pointer loss');
+});

@@ -41,7 +41,9 @@ internal class SubjectDatabase(private val root:File,private val files:SubjectDa
   private fun row(db:SQLiteDatabase,module:String,collection:String,id:String):JSONObject?=db.rawQuery("SELECT id,revision,payload FROM records WHERE module=? AND collection=? AND id=?",arrayOf(module,collection,id)).use{if(!it.moveToFirst())null else JSONObject().put("id",it.getString(0)).put("revision",it.getLong(1)).put("payload",it.getString(2))}
   private fun fork(source:Scope?,target:Scope){
     require(source==null||(source.company==target.company&&source.user==target.user)){"Cross-account data copy"}
-    val destination=file(target);files.ensureDirectory(destination.parentFile!!);check(destination.createNewFile()){ "Generation already exists" }
+    val destination=file(target);files.ensureDirectory(destination.parentFile!!)
+    if(source==null&&!destination.exists())check(destination.parentFile!!.listFiles()?.isEmpty()==true){"Retained subject data requires recovery"}
+    check(destination.createNewFile()){ "Generation already exists" }
     if(source!=null){
       val db=open(source)
       try{db.rawQuery("PRAGMA quick_check",null).use{check(it.moveToFirst()&&it.getString(0)=="ok")};db.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)",null).use{check(it.moveToFirst()&&it.getInt(0)==0){"Source checkpoint busy"}}}finally{db.close()}
