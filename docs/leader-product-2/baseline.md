@@ -34,3 +34,10 @@ Host TypeScript passed; host Jest 2 suites / 15 tests passed. Includes actual Ed
 Device list now reports no devices; open leader-126-qa2/emulator-5556 returned "No device emulator-5556 ... Call device_list for current ids". Followed advice once: devices still empty. No installation/UI/device QA. No /dev/kvm locally, so no local accelerated emulator assumed. Continue independent local tasks; device acceptance is pending.
 
 AST inventory: scripts/audit/moduleGraph.cjs => 757 files / 3836 import edges / 75 cross-feature imports, report module-graph.json. Static, normalized paths with extensions/index/platform unresolved; not runtime reachability proof. Further native/SDK/route parity inventory remains pending.
+
+## 2026-11-17 — Session/Module coordinator contract
+core/sessionCoordinator.ts adds serialized confirm/restoreOffline/goOffline/activate/logout transitions, invalidatable leases/AbortSignal, module init/activate/suspend/dispose and a credential-only persistence port. No business imports and no automatic activation from entitlements. Account switches clean old resources before enabling a new identity; cleanup failure blocks access. Rights reconfirmation removes revoked modules; cached offline restoration is available only from last-confirmed storage. Logout/revoke clears stored authorization; persistence port has no business-data deletion API. Partial module init is tracked for cleanup. Superseded queued login is rejected after newer logout.
+
+Host Jest 3 suites / 21 tests and TypeScript pass. These are coordinator/in-memory credential-port tests, not proof of native worker termination, secure credential storage or preservation of existing SQLite data. Coordinator is not yet wired into legacy AuthProvider; existing recovery remains unchanged. Pending adapter integration and native/background/device evidence.
+
+GitHub Actions confirmed success for APP b72204c4a83bfbb8b5480fb660a1ef091753da8f (run 44024524231) and API 53d3c2eab8b2c437d69684e3db113c83e83bb6f9 (read via gh run list); former fork identity and quarantine pushes also passed.
