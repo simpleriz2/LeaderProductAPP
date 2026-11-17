@@ -23,7 +23,7 @@ jobs:
       - run: npm ci
       - run: node scripts/checkForkIdentity.cjs
       - run: npx tsc --noEmit
-      - run: npm run test:unit -- --runInBand __tests__/orderOutboxCore.unit.test.ts __tests__/serviceRoutes.unit.test.ts __tests__/forkUpdateIsolation.unit.test.ts
+      - run: npm run test:unit -- --runInBand __tests__/orderOutboxCore.unit.test.ts __tests__/serviceRoutes.unit.test.ts __tests__/forkUpdateIsolation.unit.test.ts __tests__/qrService.transport.unit.test.ts __tests__/qrContact.unit.test.ts
   standalone-host:
     runs-on: ubuntu-latest
     timeout-minutes: 20

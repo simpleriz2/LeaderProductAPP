@@ -1,3 +1,4 @@
+import {parseQrContactVCard as parseVCard} from '@/src/entities/qr/vcard';
 // ===== File: components/QRcodes/QRCodeForm.tsx =====
 import type { QRCodeItemType, QRType } from '@/src/entities/qr/types';
 import { Ionicons } from '@expo/vector-icons';
@@ -102,26 +103,6 @@ export interface QRCodeFormProps {
 }
 
 // ======= Утилиты парсинга =======
-function parseVCard(vcard: string) {
-  const lines = vcard.split(/\r?\n/);
-  const out: any = {};
-  for (const ln of lines) {
-    if (ln.startsWith('FN:')) out.firstname = ln.replace(/^FN:/, '').split(' ')[0] || '';
-    if (ln.startsWith('N:')) {
-      const n = ln.replace(/^N:/, '').split(';');
-      out.lastname = n[0] || out.lastname;
-      out.firstname = n[1] || out.firstname;
-    }
-    if (/^TEL/i.test(ln)) out.phone = ln.split(':')[1]?.replace(/\D/g, '') || '';
-    if (/^EMAIL/i.test(ln)) out.email = ln.split(':')[1] || '';
-    if (/^URL/i.test(ln)) out.website = ln.split(':')[1] || '';
-    if (/^ORG/i.test(ln)) out.org = ln.split(':')[1] || '';
-    if (/^ADR/i.test(ln)) out.contactAddress = ln.split(':')[1] || '';
-    if (/^NOTE/i.test(ln)) out.note = ln.split(':')[1] || '';
-  }
-  return out;
-}
-
 function parseByType(item?: QRCodeItemType): Partial<QRFormValues> {
   if (!item) return {};
   const t = item.qrType;

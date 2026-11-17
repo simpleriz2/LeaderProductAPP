@@ -26,3 +26,6 @@ Inspected APP256a73d / APIfa02b0c source. Existing implementation is retained. P
 3. Fixture Company persistence + scoped CRUD/public scan/analytics and Central introspection for every protected online access; retain API compatibility windows.
 4. QR factory/lifecycle remote with typed Company/DB/media/navigation ports, schema-owned drafts/cache and saved-rights offline behavior.
 5. Compare native/Web scenarios, actual PNG/gallery/export/scan analytics/permissions/errors; remove replaced legacy only after parity/recovery evidence.
+
+## Implemented compatibility corrections
+Client now uses existing dev PUT for partial edit/status soft-delete. QR-owned pure vCard parser handles both legacy flat FN/ADR and structured/escaped N/ADR, folded lines and parameterized properties, preserving full names and URL colons. API counterpart retains existing stored VCard strings unchanged; new/current form fields firstName/lastName/contactAddress are represented. This is a correction to retained legacy feature paths, not migrated QR remote/business parity. Unknown legacy contact fields/complete editor round-trip still require target-module acceptance.

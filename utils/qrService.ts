@@ -127,7 +127,7 @@ export const createQRCode = async (
   return item;
 };
 
-// --- UPDATE (partial PATCH) ---
+// --- UPDATE (partial PUT supported by the dev API) ---
 export const updateQRCode = async (
   id: string,
   patch: QRPatchPayload
@@ -142,7 +142,7 @@ export const updateQRCode = async (
   }
 
   const response = (await apiClient<QRPatchPayload, QRCodeItemType>(`/qr/${id}`, {
-    method: 'PATCH',
+    method: 'PUT',
     body: patch, // частичный объект
   })) as ApiResponse<QRCodeItemType>;
 
