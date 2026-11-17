@@ -8,7 +8,7 @@ const { prepareForUser } = require('./dataGenerations.cjs');
   const storage = openDiskStore(root, point => { if(point === crashAt) process.exit(77); });
   try {
     await stageAndActivate(fixture.signed, fixture.context, {
-      checkpoint:()=>{},createAttemptId: randomUUID, storage,
+      checkpoint:()=>{},withDataActivation:async work=>work(),createAttemptId: randomUUID, storage,
       trust: { sha256: async bytes => digest(bytes), verifyEd25519: async (keyId,payload,signature) => keyId === 'fixture-key' && verify(null,Buffer.from(payload),createPublicKey(fixture.publicKey),Buffer.from(signature,'base64')) },
       download: async key => Buffer.from(fixture.artifacts[key],'base64'),
       prepareData: (release, previous) => prepareForUser(root,fixture.context.user,release,previous),

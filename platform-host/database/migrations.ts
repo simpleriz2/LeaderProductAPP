@@ -21,10 +21,11 @@ export async function prepareDataGeneration(driver:DataDriver,lease:SessionLease
     const from=source?await driver.schema(source,artifact.module):0;checkpoint();
     if(from>artifact.schema)throw Error('Destructive data downgrade denied');plans.push({artifact,owner,from});
   }
+  if(source&&plans.every(plan=>plan.from===plan.artifact.schema))return source.generation;
   const generation=identifier(createId());const target={company:release.company,user:lease.session.user,generation};
   await driver.fork(source,target);checkpoint();
   async function run(module:string,schema:number,callback:(database:ModuleDatabase)=>Promise<void>){
-    let open=true;const database=new ModuleDatabase(driver,target,module,schema,()=>{checkpoint();if(!open)throw Error('Migration view closed');});
+    let open=true;const database=new ModuleDatabase(driver,target,module,schema,()=>{checkpoint();if(!open)throw Error('Migration view closed');},work=>work());
     try{await callback(database);checkpoint();}finally{open=false;}
   }
   for(const{artifact,owner,from}of plans){

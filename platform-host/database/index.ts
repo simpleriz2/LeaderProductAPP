@@ -2,3 +2,4 @@
 export {createDatabaseSession} from './moduleDatabase';
 export type {Codec,Mutation,RecordValue,ModuleDatabase} from './moduleDatabase';
 export type {WriteReceipt} from './contracts';
+export type {DataAccessGuard} from './generationFence';

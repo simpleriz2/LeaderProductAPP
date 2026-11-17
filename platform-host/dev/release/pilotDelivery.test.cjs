@@ -20,7 +20,7 @@ test('compiled module closures cross protected HTTP, remain tenant-scoped, reuse
     const lease={session:{company:discovery.company,user,modules:discovery.modules,confirmation:'http-pilot'},online:true,signal:new AbortController().signal,assertCurrent(){}};
     const router=new ServiceRouter(lease,{assignment:async()=>({kind:'artifacts',company:discovery.company,audience:'artifacts',endpoint:discovery.artifactApi}),restrictedToken:async()=>({...scoped,value:scoped.token}),send:createWebArtifactTransport()},[pilot.artifactServer.url]);
     const context={platform:'android',company:discovery.company,user,modules:discovery.modules,host:1,runtime,compatibleApis:['1.0.0'],capabilities:{},contracts:{},moduleContracts:{qr:['1.0.0'],help:['1.0.0']}};
-    return {signed:discovery.release,context,ports:{storage:store,trust,checkpoint:()=>{},createAttemptId:randomUUID,download:artifactDownloader(router),prepareData:(release,previous)=>prepareForUser(root,user,release,previous)}};
+    return {signed:discovery.release,context,ports:{storage:store,trust,checkpoint:()=>{},withDataActivation:async work=>work(),createAttemptId:randomUUID,download:artifactDownloader(router),prepareData:(release,previous)=>prepareForUser(root,user,release,previous)}};
   }
   const first=await prepare('alice');let before=pilot.introspections();const activeAlpha=await stageAndActivate(first.signed,first.context,first.ports);await store.confirmHealthy(activeAlpha);
   assert.equal(pilot.introspections()-before,artifactFiles(alpha.release).length);store.readVerifiedBytes(activeAlpha);

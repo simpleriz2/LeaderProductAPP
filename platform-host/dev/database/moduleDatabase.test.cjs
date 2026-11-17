@@ -4,7 +4,7 @@ const codec={encode:value=>value,decode:value=>{if(!value||typeof value.text!=='
 async function fixture(t){const root=fs.mkdtempSync(os.tmpdir()+'/lp2-sdk-');t.after(()=>fs.rmSync(root,{recursive:true,force:true}));const driver=sqliteDriver(root);const scope={company:'alpha',user:'alice',generation:'gen-1'};await driver.fork(null,scope);
  for(const module of ['orders','help'])await driver.write(scope,{module,expectedSchema:0,targetSchema:1,changes:[]});
  const controller=new AbortController();const lease={session:{company:'alpha',user:'alice',modules:['orders','help'],confirmation:'confirmed'},online:false,signal:controller.signal,assertCurrent(){if(controller.signal.aborted)throw Error('Stale data lease');}};
- const session=createDatabaseSession(driver,lease,scope.generation,{orders:1,help:1});return{root,driver,scope,session,controller,lease};}
+ const session=createDatabaseSession(driver,lease,scope.generation,{orders:1,help:1},{run:async(_scope,_module,_schema,_signal,work)=>work()});return{root,driver,scope,session,controller,lease};}
 test('typed draft/outbox batch is atomic; conflicting revision rolls back every business record',async t=>{
  const f=await fixture(t),orders=f.session.module('orders'),drafts=orders.collection('drafts',codec),outbox=orders.collection('outbox',codec);
  await orders.transaction([drafts.put('draft-1',{text:'unsent draft'},null),outbox.put('submission-1',{text:'canonical payload; matching receipt owned by domain repo'},null)]);

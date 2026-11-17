@@ -16,7 +16,7 @@ function fixture(t) {
   const signed = value => { const payload=JSON.stringify(value);return { keyId:'fixture-key',payload,signature:sign(null,Buffer.from(payload),key.privateKey).toString('base64') }; };
   const trust = { sha256:async bytes=>digest(bytes), verifyEd25519:async(keyId,payload,signature)=>keyId==='fixture-key'&&verify(null,Buffer.from(payload),key.publicKey,Buffer.from(signature,'base64')) };
   const storage=openDiskStore(root);t.after(()=>storage.close());
-  const ports={storage,trust,checkpoint:()=>{},createAttemptId:randomUUID,download:async key=>Buffer.from(artifacts[key],'base64'),prepareData:(r,p)=>prepareForUser(root,context.user,r,p)};
+  const ports={storage,trust,checkpoint:()=>{},withDataActivation:async work=>work(),createAttemptId:randomUUID,download:async key=>Buffer.from(artifacts[key],'base64'),prepareData:(r,p)=>prepareForUser(root,context.user,r,p)};
   return { root,key,artifacts,context,release,signed,trust,storage,ports };
 }
 async function seed(f, activation) {

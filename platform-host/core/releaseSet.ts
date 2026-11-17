@@ -75,6 +75,8 @@ export type ReleaseProgress = { phase: 'verify-manifest'|'download'|'verify-file
 export interface ReleasePorts {
   /** Must throw for an invalidated login/logout/revoke/account-switch lease. */
   checkpoint(): void;
+  /** Holds the same account-generation fence used by subject-data reads/writes, through prepare + commit. */
+  withDataActivation<T>(work:()=>Promise<T>):Promise<T>;
   onProgress?(progress: ReleaseProgress): void;
   trust: Trust;
   createAttemptId(): string;
@@ -117,6 +119,9 @@ export async function stageAndActivate(signed: SignedRelease, context: ReleaseCo
       await ports.storage.stage(namespace, file, bytes);
       ports.checkpoint(); completed++;
     }
+    return await ports.withDataActivation(async()=>{
+    const actual=await ports.storage.current(context.company,context.user);ports.checkpoint();
+    requireValue(JSON.stringify(actual)===JSON.stringify(previous),'Concurrent activation before migration');
     report('migrate',completed,files.length);
     const dataGeneration = await ports.prepareData(release, previous);
     ports.checkpoint();
@@ -126,6 +131,7 @@ export async function stageAndActivate(signed: SignedRelease, context: ReleaseCo
     await ports.storage.commit(previous, next, namespace);
     report('ready',completed,files.length);
     return next;
+    });
   } catch (error) {
     // Cleanup failure must not hide the actual activation failure or erase last-known-good.
     await ports.storage.discard(namespace).catch(() => undefined);

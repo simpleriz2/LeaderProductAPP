@@ -12,7 +12,7 @@ let ports: ReleasePorts;
 beforeEach(() => {
   current = null; staged = new Map();
   ports = {
-    checkpoint:()=>{},createAttemptId: () => 'attempt-1',
+    checkpoint:()=>{},withDataActivation:async work=>work(),createAttemptId: () => 'attempt-1',
     trust: {
       verifyEd25519: async (keyId, payload, signature) => keyId === 'test-key' && verify(null, Buffer.from(payload), key.publicKey, Buffer.from(signature, 'base64')),
       sha256: async data => createHash('sha256').update(data).digest('hex'),
