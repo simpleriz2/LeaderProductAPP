@@ -8,10 +8,10 @@ const { openDiskStore, digest } = require('./diskStore.cjs'); const { prepareFor
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(),'lp2-recovery-')); t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
   const key = generateKeyPairSync('ed25519'); const artifacts = {};
-  const context = { platform:'android', company:'alpha', user:'alice', host:1, runtime:'fixture-runtime', compatibleApis:['1.0.0'], modules:['qr','help'] };
-  const release = version => ({ format:1,platform:'android', id:`set-${version}`, company:'alpha', minHost:1, runtime:context.runtime, api:'1.0.0', artifacts:['qr','help'].map(module=>{
+  const context = { platform:'android', company:'alpha', user:'alice', host:1, runtime:'fixture-runtime', compatibleApis:['1.0.0'],capabilities:{},contracts:{},moduleContracts:{qr:['1.0.0'],help:['1.0.0']}, modules:['qr','help'] };
+  const release = version => ({ format:2,platform:'android', id:`set-${version}`, company:'alpha', minHost:1, runtime:context.runtime, api:'1.0.0', artifacts:['qr','help'].map(module=>{
     const bytes = Buffer.from(`${module}:${module==='help'?1:version}`);const hash=digest(bytes);const key=`artifacts/${hash}.bundle`;artifacts[key]=bytes.toString('base64');
-    return { module, name:`${module}.container.bundle`,size:bytes.length,assets:[], version:`${module==='help'?1:version}.0.0`, contract:'1.0.0', schema:1, digest:hash, path:key };
+    return { module, name:`${module}.container.bundle`,size:bytes.length,assets:[], version:`${module==='help'?1:version}.0.0`, contract:'1.0.0',requires:{minHost:1,capabilities:{},contracts:{}}, schema:1, digest:hash, path:key };
   }) });
   const signed = value => { const payload=JSON.stringify(value);return { keyId:'fixture-key',payload,signature:sign(null,Buffer.from(payload),key.privateKey).toString('base64') }; };
   const trust = { sha256:async bytes=>digest(bytes), verifyEd25519:async(keyId,payload,signature)=>keyId==='fixture-key'&&verify(null,Buffer.from(payload),key.publicKey,Buffer.from(signature,'base64')) };

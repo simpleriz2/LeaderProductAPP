@@ -3,8 +3,8 @@ import { stageAndActivate, verifyRelease, type Activation, type ReleaseSet, type
 const key = generateKeyPairSync('ed25519');
 const bytes = new Uint8Array(Buffer.from('trusted probe'));
 const digest = createHash('sha256').update(bytes).digest('hex');
-const context: ReleaseContext = { platform: 'android', company: 'alpha', user: 'alice', host: 1, runtime: 'rn-0.88.1-react-19.3.0', compatibleApis: ['1.0.0'], modules: ['qr', 'help'] };
-const release: ReleaseSet = { format: 1, platform: 'android', id: 'alpha-1', company: 'alpha', minHost: 1, runtime: context.runtime, api: '1.0.0', artifacts: ['qr', 'help'].map(module => ({ module, name: `${module}.container.bundle`, size: bytes.length, assets: [], version: '1.0.0', contract: '1.0.0', schema: 1, digest, path: `artifacts/${digest}.bundle` })) };
+const context: ReleaseContext = { platform: 'android', company: 'alpha', user: 'alice', host: 1, runtime: 'rn-0.88.1-react-19.3.0', compatibleApis: ['1.0.0'], capabilities: {}, contracts: {}, moduleContracts: {qr:['1.0.0'],help:['1.0.0']}, modules: ['qr', 'help'] };
+const release: ReleaseSet = { format: 2, platform: 'android', id: 'alpha-1', company: 'alpha', minHost: 1, runtime: context.runtime, api: '1.0.0', artifacts: ['qr', 'help'].map(module => ({ module, name: `${module}.container.bundle`, size: bytes.length, assets: [], version: '1.0.0', contract: '1.0.0', requires: {minHost:1,capabilities:{},contracts:{}}, schema: 1, digest, path: `artifacts/${digest}.bundle` })) };
 const signed = (value: ReleaseSet) => { const payload = JSON.stringify(value); return { keyId: 'test-key', payload, signature: sign(null, Buffer.from(payload), key.privateKey).toString('base64') }; };
 let current: Activation | null;
 let staged: Map<string, Uint8Array[]>;
@@ -75,4 +75,29 @@ test('platform/format and every asset name/size are enforced before execution',a
 test('a signed empty entitlement set permits Core-only access without downloading modules',async()=>{
   ports.download=jest.fn();ports.storage.commit=async(_,next)=>{current=next;};
   await stageAndActivate(signed({...release,artifacts:[]}),{...context,modules:[]},ports);expect(current?.release.artifacts).toEqual([]);expect(ports.download).not.toHaveBeenCalled();
+});
+
+test.each([
+  ['missing', undefined],
+  ['newer host', {minHost:2,capabilities:{},contracts:{}}],
+  ['missing native', {minHost:1,capabilities:{microphone:1},contracts:{}}],
+  ['unsupported native revision', {minHost:1,capabilities:{camera:2},contracts:{}}],
+  ['missing domain port', {minHost:1,capabilities:{},contracts:{'stock.read':'1.0.0'}}],
+  ['unsupported domain port revision', {minHost:1,capabilities:{},contracts:{'orders.read':'2.0.0'}}],
+  ['malformed native', {minHost:1,capabilities:{camera:'1'},contracts:{}}],
+  ['malformed semantic version', {minHost:1,capabilities:{},contracts:{'orders.read':'^1.0.0'}}],
+] as const)('rejects %s module requirements before storage/download/migration',async(_,requires)=>{
+  const incompatible={...release,artifacts:release.artifacts.map(a=>({...a,requires}))} as ReleaseSet;
+  const supported={...context,capabilities:{camera:[1]},contracts:{'orders.read':['1.0.0']}};
+  ports.download=jest.fn();ports.prepareData=jest.fn();ports.storage.current=jest.fn();
+  await expect(stageAndActivate(signed(incompatible),supported,ports)).rejects.toThrow();
+  expect(ports.download).not.toHaveBeenCalled();expect(ports.prepareData).not.toHaveBeenCalled();expect(ports.storage.current).not.toHaveBeenCalled();
+});
+test('supported native and domain contract revisions are explicit sets, not an assumed >= relation',async()=>{
+  const required={...release,artifacts:release.artifacts.map(a=>({...a,requires:{minHost:1,capabilities:{camera:1},contracts:{'orders.read':'1.0.0'}}}))};
+  await expect(verifyRelease(signed(required),{...context,capabilities:{camera:[1,3]},contracts:{'orders.read':['1.0.0','2.0.0']}},ports.trust)).resolves.toEqual(required);
+  await expect(verifyRelease(signed(required),{...context,capabilities:{camera:[3]},contracts:{'orders.read':['2.0.0']}},ports.trust)).rejects.toThrow('native capability');
+  const unknown={...context,moduleContracts:{qr:['2.0.0'],help:['1.0.0']}};
+  await expect(verifyRelease(signed(release),unknown,ports.trust)).rejects.toThrow('module contract');
+  await expect(verifyRelease(signed({...release,format:1} as unknown as ReleaseSet),context,ports.trust)).rejects.toThrow('format');
 });

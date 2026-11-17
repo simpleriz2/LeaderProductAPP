@@ -1,13 +1,14 @@
 /** Semantic contracts shared by Android and Web. No Expo, UI, SQL or transport imports. */
 export type ArtifactFile = { name: string; digest: string; path: string; size: number };
-export type Artifact = ArtifactFile & { module: string; version: string; contract: string; schema: number; assets: ArtifactFile[] };
-export type ReleaseSet = { format: 1; platform: 'android' | 'web'; id: string; company: string; minHost: number; runtime: string; api: string; artifacts: Artifact[] };
+export type ModuleRequirements = { minHost: number; capabilities: Record<string, number>; contracts: Record<string, string> };
+export type Artifact = ArtifactFile & { requires: ModuleRequirements; module: string; version: string; contract: string; schema: number; assets: ArtifactFile[] };
+export type ReleaseSet = { format: 2; platform: 'android' | 'web'; id: string; company: string; minHost: number; runtime: string; api: string; artifacts: Artifact[] };
 export type SignedRelease = { keyId: string; payload: string; signature: string };
 export interface Trust {
   verifyEd25519(keyId: string, payload: string, signature: string): Promise<boolean>;
   sha256(bytes: Uint8Array): Promise<string>;
 }
-export type ReleaseContext = { platform: 'android' | 'web'; company: string; user: string; host: number; runtime: string; compatibleApis: readonly string[]; modules: readonly string[] };
+export type ReleaseContext = { platform: 'android' | 'web'; company: string; user: string; host: number; runtime: string; compatibleApis: readonly string[]; capabilities: Readonly<Record<string, readonly number[]>>; contracts: Readonly<Record<string, readonly string[]>>; moduleContracts: Readonly<Record<string, readonly string[]>>; modules: readonly string[] };
 const id = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const identifier = (value: unknown): value is string => typeof value === 'string' && id.test(value);
 const version = /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/;
@@ -16,7 +17,7 @@ export async function verifyRelease(signed: SignedRelease, context: ReleaseConte
   requireValue(signed.payload.length <= 256 * 1024, 'Manifest too large');
   requireValue(await trust.verifyEd25519(signed.keyId, signed.payload, signed.signature), 'Untrusted signature');
   const release: ReleaseSet = JSON.parse(signed.payload);
-  requireValue(release && release.format === 1 && release.platform === context.platform && ['android','web'].includes(context.platform), 'Incompatible manifest platform/format');
+  requireValue(release && release.format === 2 && release.platform === context.platform && ['android','web'].includes(context.platform), 'Incompatible manifest platform/format');
   requireValue(identifier(release.id) && release.company === context.company, 'Wrong company/release');
   requireValue(identifier(context.company) && identifier(context.user), 'Invalid namespace');
   requireValue(Number.isSafeInteger(release.minHost) && release.minHost > 0 && release.minHost <= context.host, 'Incompatible host');
@@ -29,6 +30,19 @@ export async function verifyRelease(signed: SignedRelease, context: ReleaseConte
     seen.add(artifact.module);
     requireValue(context.modules.includes(artifact.module), 'Module not entitled');
     requireValue(version.test(artifact.version) && version.test(artifact.contract), 'Versions must be exact');
+    requireValue(Object.hasOwn(context.moduleContracts, artifact.module) && context.moduleContracts[artifact.module].includes(artifact.contract), 'Incompatible module contract');
+    const requirements = artifact.requires;
+    requireValue(requirements && Number.isSafeInteger(requirements.minHost) && requirements.minHost > 0 && requirements.minHost <= context.host, 'Incompatible module host');
+    requireValue(requirements.capabilities && typeof requirements.capabilities === 'object' && !Array.isArray(requirements.capabilities) && Object.keys(requirements.capabilities).length <= 128, 'Invalid capability requirements');
+    for (const [name, revision] of Object.entries(requirements.capabilities)) {
+      requireValue(identifier(name) && Number.isSafeInteger(revision) && revision > 0, 'Invalid capability requirement');
+      requireValue(Object.hasOwn(context.capabilities, name) && context.capabilities[name].includes(revision), 'Unsupported native capability');
+    }
+    requireValue(requirements.contracts && typeof requirements.contracts === 'object' && !Array.isArray(requirements.contracts) && Object.keys(requirements.contracts).length <= 128, 'Invalid contract requirements');
+    for (const [name, required] of Object.entries(requirements.contracts)) {
+      requireValue(identifier(name) && typeof required === 'string' && version.test(required), 'Invalid contract requirement');
+      requireValue(Object.hasOwn(context.contracts, name) && context.contracts[name].includes(required), 'Unsupported semantic contract');
+    }
     requireValue(Number.isSafeInteger(artifact.schema) && artifact.schema >= 0, 'Invalid schema');
     requireValue(Array.isArray(artifact.assets) && artifact.assets.length <= 512, 'Invalid asset inventory');
     const names = new Set<string>();

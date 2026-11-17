@@ -19,7 +19,7 @@ function packageRemote(module,version,{build=true}={}){
   for(const item of [...(manifest.shared||[]),...(manifest.exposes||[])])for(const type of ['js','css'])for(const mode of ['sync','async'])references.push(...(item.assets?.[type]?.[mode]||[]));
   for(const name of references)if(!names.has(name))throw Error(`Missing federation asset: ${name}`);
   const entry=files.find(f=>f.name===`${module}.container.bundle`);if(!entry)throw Error('Missing container');
-  const artifact={module,version,contract:'1.0.0',schema:1,...entry,assets:files.filter(f=>f!==entry)};
+  const artifact={module,version,contract:'1.0.0',requires:{minHost:1,capabilities:{},contracts:{}},schema:1,...entry,assets:files.filter(f=>f!==entry)};
   atomicallyWrite(path.join(root,'build/inventories',`${module}-${version}.json`),Buffer.from(JSON.stringify(artifact,null,2)+'\n'));
   return artifact;
 }

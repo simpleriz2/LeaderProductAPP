@@ -3,9 +3,9 @@ const{packageRemote}=require('../../scripts/packRemote.cjs');const{stageAndActiv
 test('actual Re.Pack remote closures are immutable, complete and activated only after all chunks verify',async t=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'lp2-real-remotes-'));const store=openDiskStore(root);t.after(()=>{store.close();fs.rmSync(root,{recursive:true,force:true});});
   const qr1=packageRemote('qr','1.0.0'),help1=packageRemote('help','1.0.0');assert.ok(qr1.assets.length>1);assert.ok(help1.assets.length>1);assert.ok(qr1.assets.some(a=>a.name==='mf-manifest.json'));assert.ok(!qr1.assets.some(a=>a.name.endsWith('.map')||a.name==='mf-stats.json'));
-  const context={platform:'android',company:'alpha',user:'alice',host:1,runtime:'fixture-runtime',compatibleApis:['1.0.0'],modules:['qr','help']};
+  const context={platform:'android',company:'alpha',user:'alice',host:1,runtime:'fixture-runtime',compatibleApis:['1.0.0'],capabilities:{},contracts:{},moduleContracts:{qr:['1.0.0'],help:['1.0.0']},modules:['qr','help']};
   const pair=generateKeyPairSync('ed25519');const signed=release=>{const payload=JSON.stringify(release);return{keyId:'fixture',payload,signature:sign(null,Buffer.from(payload),pair.privateKey).toString('base64')};};
-  const release=(id,qr)=>({format:1,platform:'android',id,company:'alpha',minHost:1,runtime:context.runtime,api:'1.0.0',artifacts:[qr,help1]});
+  const release=(id,qr)=>({format:2,platform:'android',id,company:'alpha',minHost:1,runtime:context.runtime,api:'1.0.0',artifacts:[qr,help1]});
   const ports={storage:store,createAttemptId:randomUUID,trust:{sha256:async bytes=>digest(bytes),verifyEd25519:async(id,payload,sig)=>id==='fixture'&&verify(null,Buffer.from(payload),pair.publicKey,Buffer.from(sig,'base64'))},download:async key=>fs.readFileSync(path.join(__dirname,'../../build/immutable',key)),prepareData:(r,p)=>prepareForUser(root,'alice',r,p)};
   const first=await stageAndActivate(signed(release('set-1',qr1)),context,ports);assert.equal(store.readVerifiedBytes(first).length,artifactFiles(first.release).length);
   const qr2=packageRemote('qr','2.0.0');assert.notDeepEqual(artifactFiles({artifacts:[qr1]}).map(f=>f.digest),artifactFiles({artifacts:[qr2]}).map(f=>f.digest));assert.deepEqual(JSON.parse(fs.readFileSync(path.join(__dirname,'../../build/inventories/help-1.0.0.json'))),help1);

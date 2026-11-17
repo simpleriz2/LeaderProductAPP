@@ -42,3 +42,7 @@ Retired manual publication commands now fail immediately, including dry-run. New
 
 ## Protected complete-package delivery
 Actual compiled Re.Pack closures now pass through the local Central/artifact HTTP pilot into signature/hash-verified tenant cache activation. The optional cross-fork acceptance command is `LP2_API_PILOT_ROOT=<local API fork> npm run test:pilot-delivery` inside platform-host; it deliberately has no external/default path. Native/Web durable adapters and trusted remote execution are still unfinished.
+
+## ADR-008: explicit unreleased module compatibility format
+Accepted: manifest **format2** replaces the local, never deployed format1 prototype; old formats fail closed. Each artifact must declare `requires.minHost`, exact native capability revisions and exact semantic port versions. Host context supplies explicit supported revision/version sets plus supported exported module contracts. Higher revision alone never implies backwards compatibility. Shared runtime family remains an independent compatibility gate; source fingerprint identifies the actual APK/bundle pair. Signed metadata cannot make unavailable native code appear. Empty requirements on QR/Help probes describe delivery fixtures only, not working camera/chat features.
+No deployed/offline client exists on these prototype formats. Future deployed format evolution must retain an explicit offline compatibility window/migration path; rejecting local format1 is not a production update strategy. Business API compatibility and key rotation remain separate backlog items.

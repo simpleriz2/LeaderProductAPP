@@ -6,7 +6,7 @@ const {packageRemote}=require('../../scripts/packRemote.cjs');const {stageAndAct
 const {ServiceRouter}=require('../../core/serviceRouter.ts');const {artifactDownloader}=require('../../core/artifactDownload.ts');const {createWebArtifactTransport}=require('../../adapters/artifacts.web.ts');const {createWebTrust}=require('../../adapters/trust.web.ts');
 const {openDiskStore}=require('../recovery/diskStore.cjs');const {prepareForUser}=require('../recovery/dataGenerations.cjs');const runtime=require('../../host.runtime.json').android.runtime;
 async function json(url,token,body){const r=await fetch(url,{method:body?'POST':'GET',headers:{'content-type':'application/json',...(token?{authorization:`Bearer ${token}`}:{})},...(body?{body:JSON.stringify(body)}:{})});assert.equal(r.status,200);return r.json();}
-function assignment(company,id,artifacts){const release={format:1,platform:'android',company,id,minHost:1,runtime,api:'1.0.0',artifacts};const files=new Map(artifactFiles(release).map(f=>[f.path,fs.readFileSync(path.join(__dirname,'../../build/immutable',f.path))]));return{release,files};}
+function assignment(company,id,artifacts){const release={format:2,platform:'android',company,id,minHost:1,runtime,api:'1.0.0',artifacts};const files=new Map(artifactFiles(release).map(f=>[f.path,fs.readFileSync(path.join(__dirname,'../../build/immutable',f.path))]));return{release,files};}
 test('compiled module closures cross protected HTTP, remain tenant-scoped, reuse unchanged bytes and survive online revoke',async t=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'lp2-http-remotes-'));const store=openDiskStore(root);
   t.after(()=>{store.close();fs.rmSync(root,{recursive:true,force:true});});
@@ -19,7 +19,7 @@ test('compiled module closures cross protected HTTP, remain tenant-scoped, reuse
     const discovery=await json(`${pilot.central.url}/discovery`,sessions[user]);const scoped=await json(`${pilot.central.url}/tokens`,sessions[user],{audience:'artifacts'});
     const lease={session:{company:discovery.company,user,modules:discovery.modules,confirmation:'http-pilot'},online:true,signal:new AbortController().signal,assertCurrent(){}};
     const router=new ServiceRouter(lease,{assignment:async()=>({kind:'artifacts',company:discovery.company,audience:'artifacts',endpoint:discovery.artifactApi}),restrictedToken:async()=>({...scoped,value:scoped.token}),send:createWebArtifactTransport()},[pilot.artifactServer.url]);
-    const context={platform:'android',company:discovery.company,user,modules:discovery.modules,host:1,runtime,compatibleApis:['1.0.0']};
+    const context={platform:'android',company:discovery.company,user,modules:discovery.modules,host:1,runtime,compatibleApis:['1.0.0'],capabilities:{},contracts:{},moduleContracts:{qr:['1.0.0'],help:['1.0.0']}};
     return {signed:discovery.release,context,ports:{storage:store,trust,createAttemptId:randomUUID,download:artifactDownloader(router),prepareData:(release,previous)=>prepareForUser(root,user,release,previous)}};
   }
   const first=await prepare('alice');let before=pilot.introspections();const activeAlpha=await stageAndActivate(first.signed,first.context,first.ports);
