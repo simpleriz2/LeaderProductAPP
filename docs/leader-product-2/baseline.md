@@ -100,3 +100,6 @@ Identity generator/check, host Jest 8 suites / 50 tests, TypeScript, JVM crypto 
 GitHub API workflow registry was rechecked: each fork lists only active Fork checks (APP workflow 420131861, API 420131904); no legacy release/deploy workflow registered. New hosted native CI had already passed for 66c5245.
 
 Runtime build-gate follow-up: unknown/missing Git commit now fails closed; only a real pre-identity base commit may omit metadata. CLI integration checks current real HEAD and an intentionally nonexistent test reference. This prevents a missing checkout object from silently skipping version evolution. `npm run test:runtime` passed; included in safe CI. Identity acceptance APK SHA256 1c184c8674b886750181fa000d8a5142ee4c0e111f6df322d2134546de16268c.
+
+## 2026-11-17 — retired publication CLI quarantine
+Blocked 7 inherited APK/Expo OTA/symbol mutation entrypoints before config, dependencies, files or network. No environment bypass; includes dry-run invocations to avoid reviving original publication paths. Read-only metadata builders/validators and recovery source retained. Node CLI subprocess tests: 7/7 passed with empty environment and missing metadata; API OTA validation suite: 14/14 passed. CI checks refusal before npm installation. No upload, Docker inspection or database access performed.

@@ -36,3 +36,6 @@ Fork identity and legacy updater quarantine committed as 7865ce6. Standalone nat
 
 ## Audit expansion 2026-11-17
 AST inventory expanded to app.config.ts/index.js: 759 files / 3844 edges / 75 cross-feature imports. Generated Expo-package dispositions and route list in expo-and-routes.md; scenario acceptance register in parity.md. Important historical gap: API dev has onec-personal but no personal-mail directory; investigate original working reachability/history, do not silently exclude mail or copy main wholesale. Native credentials adapter was pushed as ec1d013; all native/device limits remain as recorded in baseline.md.
+
+## Publication quarantine extension
+Retired manual publication commands now fail immediately, including dry-run. New fork release delivery must use the isolated signed company-release pipeline; external publishing remains unauthorized. Existing workflow snapshots and recovery history are retained.

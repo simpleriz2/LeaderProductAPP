@@ -1,3 +1,4 @@
+require('./legacyPublicationDisabled.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');

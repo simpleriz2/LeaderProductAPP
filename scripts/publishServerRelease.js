@@ -1,3 +1,4 @@
+require('./legacyPublicationDisabled.cjs');
 // Runs only on the trusted release runner. No database credentials leave API containers.
 const fs = require('node:fs');
 const path = require('node:path');

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require('./legacyPublicationDisabled.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 

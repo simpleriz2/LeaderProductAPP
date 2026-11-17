@@ -19,6 +19,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - run: node --test scripts/legacyPublicationDisabled.test.cjs
       - run: npm ci
       - run: node scripts/checkForkIdentity.cjs
       - run: npx tsc --noEmit
