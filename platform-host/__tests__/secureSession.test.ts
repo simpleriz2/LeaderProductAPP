@@ -30,3 +30,12 @@ test('logout during pending signature verification cannot resurrect an accepted 
  const store=createSecureSessionStore(delayed,{readSession:async()=>null,writeSession:async()=>{},clearSession:async()=>{}});
  const pending=store.acceptOnlineGrant(grant());await store.clearSession();release();await expect(pending).rejects.toThrow('Superseded');await expect(store.saveConfirmed(session)).rejects.toThrow('matching online');
 });
+test('native host ticket captures before request; late acceptance after newer login/logout cannot be persisted',async()=>{
+ const{createNativeHostSessionStore}=require('../adapters/hostSession.native');let raw:string|null=null;const store=createNativeHostSessionStore(createSecureSessionStore(trust,{readSession:async()=>raw,writeSession:async value=>{raw=value;},clearSession:async()=>{raw=null;}}));
+ const old=await store.beginOnlineConfirmation(),current=await store.beginOnlineConfirmation();await expect(old.acceptOnlineGrant(grant())).rejects.toThrow('Superseded');await store.saveConfirmed(await current.acceptOnlineGrant(grant()));expect(await store.peekLastConfirmed()).toEqual(session);
+ const stale=await store.beginOnlineConfirmation();await store.clearSession();await expect(stale.acceptOnlineGrant(grant())).rejects.toThrow('Superseded');expect(await store.loadLastConfirmed()).toBeNull();await expect(store.saveConfirmed(session)).rejects.toThrow('ticket');
+});
+test('native host serializes an in-flight proof write before logout and keeps business data outside credential cleanup',async()=>{
+ const{createNativeHostSessionStore}=require('../adapters/hostSession.native');let raw:string|null=null,release!:()=>void,entered!:()=>void;const starting=new Promise<void>(resolve=>{entered=resolve;}),blocked=new Promise<void>(resolve=>{release=resolve;});const store=createNativeHostSessionStore(createSecureSessionStore(trust,{readSession:async()=>raw,writeSession:async value=>{entered();await blocked;raw=value;},clearSession:async()=>{raw=null;}}));
+ const ticket=await store.beginOnlineConfirmation(),confirmed=await ticket.acceptOnlineGrant(grant());const saving=store.saveConfirmed(confirmed);await starting;const clearing=store.clearSession();release();await expect(saving).rejects.toThrow('Superseded');await clearing;expect(raw).toBeNull();store.close();await expect(store.peekLastConfirmed()).rejects.toThrow('closed');
+});

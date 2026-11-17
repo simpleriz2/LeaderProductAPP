@@ -26,7 +26,8 @@
     "test:company-window": "node --experimental-strip-types --test dev/http/companyWindow.test.cjs",
     "test:qr-storage": "node --experimental-strip-types --test dev/qr/drafts.test.cjs dev/qr/createAttempts.test.cjs dev/qr/controller.test.cjs",
     "test:qr-packages": "node --test dev/qr/packages.test.cjs",
-    "test:web-business": "node scripts/testWebBusiness.cjs"
+    "test:web-business": "node scripts/testWebBusiness.cjs",
+    "bundle:android:host": "react-native bundle --platform android --dev false --entry-file dev/native/host-entry.ts --bundle-output build/native-host/index.android.bundle --assets-dest build/native-host"
   },
   "dependencies": {
     "react": "19.3.0",

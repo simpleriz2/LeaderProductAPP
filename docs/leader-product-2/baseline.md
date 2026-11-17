@@ -256,3 +256,7 @@ Primary pinned HTTP source checked: [OkHttp4.12 RealCall cancellation/deadline i
 
 ### 2026-11-17: common Central exchange prerequisite
 Target TS120unit/20suites,9actual HTTP transport cases,6delivery-host browser E2E (10.68s) and actual QR business PG E2E (4.58s) passed. Web now uses common fixed-origin/path Central client; native counterpart uses explicit public bridge for login, scoped bearer bridge otherwise. Actual loopback test confirms login has no universal Authorization, denial is handled before invalid JSON, and redirect never receives credential at target. Oversized/native mocked response checks are unit evidence; native runtime acceptance remains pending. Native Kotlin/fingerprint/APK10 unchanged.
+
+
+### 2026-11-17: shared Web/native host composition
+TypeScript and125unit tests/20suites passed. Actual Web delivery host7/7 E2E passed15.53s including cached Bob→Alice→Bob confirmation with interrupted new download: saved offline label/restoration stay on Bob, never Alice. Actual business QR+Central+Company+PostgreSQL E2E passed4.94s. Native host composition release bundle compiled through Re.Pack/Rspack6.69s,703modules; this is compile evidence, not native execution. No Kotlin/native fingerprint change or new APK required for this slice. Single-RN native ticket tests cover supersession/queued-save vs clear; no multi-process CAS claim. Device Hub blocker unchanged.

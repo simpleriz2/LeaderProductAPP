@@ -468,3 +468,9 @@ test('unconfigured default Web host has no login/module UI and makes no platform
   assert.equal(f.pilot.introspections(), 0);
   assert.deepEqual(f.platformRequests, []);
 });
+test('failed preparation after another valid login shows/restores the actually saved user, never the former offline label',async t=>{
+ const f=await fixture(t),page=await f.open();await login(page,'bob');await show(page,'qr','2.0.0');await page.reload();await login(page,'alice');await show(page,'qr','1.0.0');await page.reload();
+ const candidate=assignment(release('beta','beta-unavailable3',[bad]));f.pilot.assignRelease(candidate.release,candidate.files);await page.route('**/'+bad.path,route=>route.abort());
+ await page.getByLabel('Пользователь',{exact:true}).fill('bob');await page.getByLabel('Пароль',{exact:true}).fill('fixture-only');await page.getByRole('button',{name:'Войти',exact:true}).click();await page.getByRole('button',{name:'Продолжить без сети: bob',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Продолжить без сети: alice',exact:true}).count(),0);
+ const before=f.pilot.introspections();await offline(page,'bob');await show(page,'qr','2.0.0');assert.equal(f.pilot.introspections(),before);assert.equal(await page.getByRole('button',{name:'Help',exact:true}).count(),0);
+});

@@ -101,3 +101,13 @@ test('failed screen cleanup aborts all leases and blocks another module/account 
  await coordinator.confirm(alice);await coordinator.activate('qr');await coordinator.activate('outbox');const old=coordinator.currentLease();qr.suspend=async()=>{throw Error('Module cleanup failed');};
  await expect(coordinator.deactivate('qr')).rejects.toThrow('cleanup incomplete');expect(old.signal.aborted).toBe(true);expect(events).toContain('outbox:dispose');await expect(coordinator.activate('outbox')).rejects.toThrow('No usable session');expect(saved?.user).toBe('alice');
 });
+test('beginning another login stops old resources immediately while retaining only the saved confirmed offline identity',async()=>{
+ await coordinator.confirm(alice);await coordinator.activate('outbox');const old=coordinator.currentLease();const stopped=coordinator.suspendSession('login');expect(old.signal.aborted).toBe(true);await stopped;expect(events).toContain('outbox:suspend:login');expect(events).toContain('outbox:dispose');expect(saved?.user).toBe('alice');expect(()=>coordinator.currentLease()).toThrow('No usable session');
+ await coordinator.restoreOffline();expect(coordinator.currentLease().session.user).toBe('alice');expect(coordinator.currentLease().online).toBe(false);expect(events.filter(event=>event==='outbox:activate')).toHaveLength(1);
+});
+test('resource-only suspension cannot undo explicit logout invalidation after credential storage failure',async()=>{
+ const broken=new SessionCoordinator({loadLastConfirmed:async()=>alice,saveConfirmed:async()=>{},clearSession:async()=>{throw Error('disk');}},[],{prepare:async()=>{}});await broken.confirm(alice);await expect(broken.logout()).rejects.toThrow('disk');await broken.suspendSession();await expect(broken.restoreOffline()).rejects.toThrow('Authorization invalidated');
+});
+test('offline restoration cannot silently select a different saved subject than the host showed',async()=>{
+ saved=alice;await expect(coordinator.restoreOffline({company:'beta',user:'bob'})).rejects.toThrow('identity changed');expect(events).toEqual([]);expect(saved?.user).toBe('alice');expect(()=>coordinator.currentLease()).toThrow('No usable session');await coordinator.restoreOffline({company:'alpha',user:'alice'});expect(coordinator.currentLease().session.user).toBe('alice');
+});

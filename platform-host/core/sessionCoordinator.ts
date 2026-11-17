@@ -98,7 +98,8 @@ export class SessionCoordinator {
     });
   }
   /** Offline restoration reads only the last saved confirmed identity, never entered credentials. */
-  restoreOffline(): Promise<void> {
+  restoreOffline(expected?:Pick<ConfirmedSession,'company'|'user'>): Promise<void> {
+    const expectedIdentity=expected?Object.freeze({company:expected.company,user:expected.user}):null;
     const revision = this.invalidate();
     return this.serialize(async () => {
       if(revision !== this.epoch) throw Error('Superseded session transition');
@@ -107,6 +108,7 @@ export class SessionCoordinator {
       const saved = await this.store.loadLastConfirmed();
       if(revision !== this.epoch) throw Error('Superseded session transition');
       if(!saved) throw Error('First login requires Central connection');
+      if(expectedIdentity&&(saved.company!==expectedIdentity.company||saved.user!==expectedIdentity.user))throw Error('Saved offline identity changed');
       this.session = snapshotConfirmedSession(saved); this.online = false; this.controller = new AbortController();
       await this.prepare();
     });
@@ -132,6 +134,11 @@ export class SessionCoordinator {
     try{await module.suspend(reason);await module.dispose();this.running.delete(id);}
     catch(error){this.invalidate();await this.stop('deactivation-failed');throw error;}
   });}
+  /** Authentication may stop resources without deleting the last confirmed offline identity/data. */
+  suspendSession(reason='authentication'):Promise<void>{
+    const revision=this.invalidate();
+    return this.serialize(async()=>{if(revision!==this.epoch)throw Error('Superseded session transition');this.desired.clear();await this.stop(reason);});
+  }
   /** Another Web tab changed saved authority. Stop local work without clearing its new proof/data. */
   invalidateExternalSession():Promise<void>{
     this.authorizationInvalidated=true;this.invalidate();
