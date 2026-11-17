@@ -1,3 +1,4 @@
+import type {SessionAuthority} from './sessionAuthority';
 import type { SessionLease } from './sessionCoordinator';
 export type ServiceKind = 'company' | 'artifacts' | 'help';
 export type ServiceAssignment = { kind: ServiceKind; company: string; audience: string; endpoint: string };
@@ -15,7 +16,9 @@ export class ServiceRouter {
   private allowed: Set<string>;
   private readonly lease: SessionLease;
   private readonly ports: ServiceRoutingPorts;
-  constructor(lease: SessionLease, ports: ServiceRoutingPorts, allowedOrigins: readonly string[]) {
+  private readonly authority:SessionAuthority;
+  constructor(lease: SessionLease, ports: ServiceRoutingPorts, allowedOrigins: readonly string[],authority:SessionAuthority) {
+    if(!authority?.run)throw Error('Service session authority required');this.authority=authority;
     this.lease = lease; this.ports = ports;
     this.allowed = new Set(allowedOrigins.map(origin => {
       const url = new URL(origin);
@@ -30,6 +33,7 @@ export class ServiceRouter {
     if(!this.lease.online) throw Error('Service requires online confirmation');
     const decoded = decodeURIComponent(relativePath);
     if(!relativePath.startsWith('/') || decoded.startsWith('//') || /[\\#\u0000-\u001f]/.test(decoded) || decoded.split(/[/?]/).some(p=>p==='.'||p==='..')) throw Error('Invalid service path');
+    return this.authority.run(this.lease,async()=>{
     const assignment = await this.ports.assignment(kind,this.lease.session.company);
     this.lease.assertCurrent();
     const endpoint = new URL(assignment.endpoint);
@@ -50,5 +54,6 @@ export class ServiceRouter {
       // Responses/errors from an invalidated account cannot affect another account's status/UI.
       this.lease.assertCurrent(); this.availability.set(kind,'unavailable'); throw error;
     }
+    });
   }
 }

@@ -21,7 +21,7 @@ const {ServiceRouter}=require('../../core/serviceRouter.ts');const {createWebHtt
           const r=await fetch(`${pilot.central.url}/tokens`,{method:'POST',headers:{authorization:`Bearer ${session.token}`,'content-type':'application/json'},body:JSON.stringify({audience})});assert.equal(r.status,200);
           const token=await r.json();return {...token,value:token.token};
         },send:createWebHttpTransport(),
-      },[pilot.companies[company].url]);
+      },[pilot.companies[company].url],{async run(lease,work){lease.assertCurrent();const result=await work();lease.assertCurrent();return result;}});
       const response=await router.request('company',`/records/${user}-draft`);assert.equal(response.status,200);assert.equal(response.body.company,company);assert.equal(response.body.owner,user);
       assert.equal(router.status('artifacts'),'unknown');
       pilot.revoke(user);await assert.rejects(router.request('company',`/records/${user}-draft`),/Central denied/);

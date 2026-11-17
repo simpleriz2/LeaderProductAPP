@@ -18,7 +18,7 @@ test('compiled module closures cross protected HTTP, remain tenant-scoped, reuse
   async function prepare(user){
     const discovery=await json(`${pilot.central.url}/discovery`,sessions[user]);const scoped=await json(`${pilot.central.url}/tokens`,sessions[user],{audience:'artifacts'});
     const lease={session:{company:discovery.company,user,modules:discovery.modules,confirmation:'http-pilot'},online:true,signal:new AbortController().signal,assertCurrent(){}};
-    const router=new ServiceRouter(lease,{assignment:async()=>({kind:'artifacts',company:discovery.company,audience:'artifacts',endpoint:discovery.artifactApi}),restrictedToken:async()=>({...scoped,value:scoped.token}),send:createWebArtifactTransport()},[pilot.artifactServer.url]);
+    const router=new ServiceRouter(lease,{assignment:async()=>({kind:'artifacts',company:discovery.company,audience:'artifacts',endpoint:discovery.artifactApi}),restrictedToken:async()=>({...scoped,value:scoped.token}),send:createWebArtifactTransport()},[pilot.artifactServer.url],{async run(lease,work){lease.assertCurrent();const result=await work();lease.assertCurrent();return result;}});
     const context={platform:'android',company:discovery.company,user,modules:discovery.modules,host:1,runtime,compatibleApis:['1.0.0'],capabilities:{},contracts:{},moduleContracts:{qr:['1.0.0'],help:['1.0.0']}};
     return {signed:discovery.release,context,ports:{storage:store,trust,checkpoint:()=>{},withDataActivation:async work=>work(),createAttemptId:randomUUID,download:artifactDownloader(router),prepareData:(release,previous)=>prepareForUser(root,user,release,previous)}};
   }

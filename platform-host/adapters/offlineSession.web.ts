@@ -70,3 +70,8 @@ export function bindWebSessionInvalidation(store:Awaited<ReturnType<typeof openW
   })().catch(error=>onInvalidated(error));});
   return()=>{disposed=true;unsubscribe();};
 }
+
+/** Use on individual bounded IO entrypoints; do not nest this gate around an already guarded operation. */
+export function createWebSessionAuthority(store:Awaited<ReturnType<typeof openWebSessionStore>>):import('../core/sessionAuthority').SessionAuthority{
+  return{run:(lease,work)=>{lease.assertCurrent();return store.run(lease.session,lease.signal,async()=>{lease.assertCurrent();const result=await work();lease.assertCurrent();return result;});}};
+}
