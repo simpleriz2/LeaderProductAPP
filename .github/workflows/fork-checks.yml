@@ -83,3 +83,21 @@ jobs:
       - run: node scripts/local-keystore.cjs
       - run: ./gradlew :app:testDebugUnitTest :app:assembleRelease --no-daemon --max-workers=1 -PreactNativeArchitectures=x86_64 -Dorg.gradle.jvmargs="-Xmx2048m -XX:MaxMetaspaceSize=512m" -Pkotlin.compiler.execution.strategy=in-process
         working-directory: platform-host/android
+  standalone-web-storage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: platform-host
+    env:
+      NODE_OPTIONS: --max-old-space-size=2048
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: platform-host/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps --only-shell chromium
+      - run: npm run test:web-storage

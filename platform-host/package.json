@@ -15,7 +15,8 @@
     "test:crypto": "node --experimental-strip-types --test dev/crypto/webTrust.test.cjs",
     "test:remote-packages": "node --experimental-strip-types --test dev/release/remotePackages.test.cjs",
     "test:runtime": "node --test dev/runtime/identity.test.cjs",
-    "test:pilot-delivery": "node --experimental-strip-types --test dev/release/pilotDelivery.test.cjs"
+    "test:pilot-delivery": "node --experimental-strip-types --test dev/release/pilotDelivery.test.cjs",
+    "test:web-storage": "node scripts/testWebStorage.cjs"
   },
   "dependencies": {
     "react": "19.3.0",
@@ -30,6 +31,7 @@
     "@babel/runtime": "^7.25.0",
     "@callstack/repack": "5.4.4",
     "@module-federation/enhanced": "2.9.3",
+    "@playwright/test": "1.65.1",
     "@react-native-community/cli": "20.2.0",
     "@react-native-community/cli-platform-android": "20.2.0",
     "@react-native-community/cli-platform-ios": "20.2.0",
