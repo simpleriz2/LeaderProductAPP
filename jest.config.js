@@ -1,4 +1,5 @@
 const common = {
+  modulePathIgnorePatterns: ['<rootDir>/platform-host/'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },

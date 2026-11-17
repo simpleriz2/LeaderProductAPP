@@ -23,3 +23,23 @@ jobs:
       - run: node scripts/checkForkIdentity.cjs
       - run: npx tsc --noEmit
       - run: npm run test:unit -- --runInBand __tests__/orderOutboxCore.unit.test.ts __tests__/serviceRoutes.unit.test.ts __tests__/forkUpdateIsolation.unit.test.ts
+  standalone-host:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: platform-host
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: platform-host/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test -- --runInBand
+      - run: npm run bundle:android
+      - run: npm run build:web

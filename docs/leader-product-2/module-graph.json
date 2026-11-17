@@ -1,0 +1,608 @@
+{
+  "method": "TypeScript AST; paths normalized, extensions/platform/index not resolved; includes type imports; dynamic non-literals require manual review",
+  "files": 757,
+  "edges": 3836,
+  "crossFeatureImports": [
+    {
+      "file": "src/features/admin/redesign/AdminContent.tsx",
+      "specifier": "../../help/helpTheme",
+      "target": "src/features/help/helpTheme",
+      "kind": "static",
+      "from": "admin",
+      "to": "help"
+    },
+    {
+      "file": "src/features/admin/redesign/AdminDesignPrimitives.tsx",
+      "specifier": "../../help/helpTheme",
+      "target": "src/features/help/helpTheme",
+      "kind": "static",
+      "from": "admin",
+      "to": "help"
+    },
+    {
+      "file": "src/features/admin/redesign/AdminDesignPrimitives.tsx",
+      "specifier": "../../help/components/HelpPrimitives",
+      "target": "src/features/help/components/HelpPrimitives",
+      "kind": "static",
+      "from": "admin",
+      "to": "help"
+    },
+    {
+      "file": "src/features/admin/redesign/AdminDirectory.tsx",
+      "specifier": "../../help/helpTheme",
+      "target": "src/features/help/helpTheme",
+      "kind": "static",
+      "from": "admin",
+      "to": "help"
+    },
+    {
+      "file": "src/features/admin/redesign/AdminSceneHeader.tsx",
+      "specifier": "../../help/helpTheme",
+      "target": "src/features/help/helpTheme",
+      "kind": "static",
+      "from": "admin",
+      "to": "help"
+    },
+    {
+      "file": "src/features/admin/redesign/AdminSection.tsx",
+      "specifier": "../../help/helpTheme",
+      "target": "src/features/help/helpTheme",
+      "kind": "static",
+      "from": "admin",
+      "to": "help"
+    },
+    {
+      "file": "src/features/admin/redesign/AdminUpdates.tsx",
+      "specifier": "../../help/helpTheme",
+      "target": "src/features/help/helpTheme",
+      "kind": "static",
+      "from": "admin",
+      "to": "help"
+    },
+    {
+      "file": "src/features/admin/redesign/AdminUserIntegrations.tsx",
+      "specifier": "../../help/helpTheme",
+      "target": "src/features/help/helpTheme",
+      "kind": "static",
+      "from": "admin",
+      "to": "help"
+    },
+    {
+      "file": "src/features/admin/redesign/AdminUsers.tsx",
+      "specifier": "../../help/helpTheme",
+      "target": "src/features/help/helpTheme",
+      "kind": "static",
+      "from": "admin",
+      "to": "help"
+    },
+    {
+      "file": "src/features/admin/redesign/LiveAdminProvider.tsx",
+      "specifier": "../../knowledge/api",
+      "target": "src/features/knowledge/api",
+      "kind": "static",
+      "from": "admin",
+      "to": "knowledge"
+    },
+    {
+      "file": "src/features/admin/screen/AdminScreen.tsx",
+      "specifier": "../../help/helpTheme",
+      "target": "src/features/help/helpTheme",
+      "kind": "static",
+      "from": "admin",
+      "to": "help"
+    },
+    {
+      "file": "src/features/admin/screen/AdminScreen.tsx",
+      "specifier": "@/src/features/navigation/LastServiceRouteContext",
+      "target": "src/features/navigation/LastServiceRouteContext",
+      "kind": "static",
+      "from": "admin",
+      "to": "navigation"
+    },
+    {
+      "file": "src/features/appeals/analytics/components/UsersAnalyticsSection.tsx",
+      "specifier": "@/src/features/admin/tabs/users/UsersListItemCard",
+      "target": "src/features/admin/tabs/users/UsersListItemCard",
+      "kind": "static",
+      "from": "appeals",
+      "to": "admin"
+    },
+    {
+      "file": "src/features/appeals/analytics/components/UsersAnalyticsSection.tsx",
+      "specifier": "@/src/features/services/lib/grid",
+      "target": "src/features/services/lib/grid",
+      "kind": "static",
+      "from": "appeals",
+      "to": "services"
+    },
+    {
+      "file": "src/features/clientOrders/ClientOrderLinkedScreen.tsx",
+      "specifier": "../services/headerSlotContext",
+      "target": "src/features/services/headerSlotContext",
+      "kind": "static",
+      "from": "clientOrders",
+      "to": "services"
+    },
+    {
+      "file": "src/features/clientOrders/ClientOrderLinkedScreen.tsx",
+      "specifier": "../profile/ui/ProfileOnecConnections",
+      "target": "src/features/profile/ui/ProfileOnecConnections",
+      "kind": "static",
+      "from": "clientOrders",
+      "to": "profile"
+    },
+    {
+      "file": "src/features/clientOrders/ClientOrdersMobileScreen.tsx",
+      "specifier": "@/src/features/services/headerSlotContext",
+      "target": "src/features/services/headerSlotContext",
+      "kind": "static",
+      "from": "clientOrders",
+      "to": "services"
+    },
+    {
+      "file": "src/features/clientOrders/ClientOrdersMobileScreen.tsx",
+      "specifier": "@/src/features/navigation/LastServiceRouteContext",
+      "target": "src/features/navigation/LastServiceRouteContext",
+      "kind": "static",
+      "from": "clientOrders",
+      "to": "navigation"
+    },
+    {
+      "file": "src/features/clientOrders/ClientOrdersMobileScreen.tsx",
+      "specifier": "@/src/features/productCatalog",
+      "target": "src/features/productCatalog",
+      "kind": "static",
+      "from": "clientOrders",
+      "to": "productCatalog"
+    },
+    {
+      "file": "src/features/clientOrders/ClientOrdersWebScreen.tsx",
+      "specifier": "@/src/features/services/headerSlotContext",
+      "target": "src/features/services/headerSlotContext",
+      "kind": "static",
+      "from": "clientOrders",
+      "to": "services"
+    },
+    {
+      "file": "src/features/clientOrders/offline/customerPurchaseHistoryDatabase.ts",
+      "specifier": "../../productCatalog/data/catalogDatabase",
+      "target": "src/features/productCatalog/data/catalogDatabase",
+      "kind": "static",
+      "from": "clientOrders",
+      "to": "productCatalog"
+    },
+    {
+      "file": "src/features/clientOrders/offline/offlineOrdersDatabase.ts",
+      "specifier": "@/src/features/productCatalog/data/catalogDatabase",
+      "target": "src/features/productCatalog/data/catalogDatabase",
+      "kind": "static",
+      "from": "clientOrders",
+      "to": "productCatalog"
+    },
+    {
+      "file": "src/features/clientOrders/offline/offlineOrdersSync.ts",
+      "specifier": "@/src/features/productCatalog",
+      "target": "src/features/productCatalog",
+      "kind": "static",
+      "from": "clientOrders",
+      "to": "productCatalog"
+    },
+    {
+      "file": "src/features/clientOrders/screen/ClientOrdersScreen.tsx",
+      "specifier": "@/src/features/services/headerSlotContext",
+      "target": "src/features/services/headerSlotContext",
+      "kind": "static",
+      "from": "clientOrders",
+      "to": "services"
+    },
+    {
+      "file": "src/features/counterparties/screens/CounterpartyCardScreen.tsx",
+      "specifier": "@/src/features/services/headerSlotContext",
+      "target": "src/features/services/headerSlotContext",
+      "kind": "static",
+      "from": "counterparties",
+      "to": "services"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardBody.tsx",
+      "specifier": "../profile/ui/ProfileOnecConnections",
+      "target": "src/features/profile/ui/ProfileOnecConnections",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "profile"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardBody.tsx",
+      "specifier": "../help/components/HelpHtmlSurface",
+      "target": "src/features/help/components/HelpHtmlSurface",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "help"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardBody.tsx",
+      "specifier": "../help/helpChatLink",
+      "target": "src/features/help/helpChatLink",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "help"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardBody.tsx",
+      "specifier": "../webPages/WebPageContent",
+      "target": "src/features/webPages/WebPageContent",
+      "kind": "dynamic",
+      "from": "entityCards",
+      "to": "webPages"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardContext.tsx",
+      "specifier": "../viewer/viewerTypes",
+      "target": "src/features/viewer/viewerTypes",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "viewer"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardHost.tsx",
+      "specifier": "../help/helpTheme",
+      "target": "src/features/help/helpTheme",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "help"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardHost.tsx",
+      "specifier": "../help/components/HelpViewerLayout",
+      "target": "src/features/help/components/HelpViewerLayout",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "help"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardHost.types.ts",
+      "specifier": "../viewer/viewerTypes",
+      "target": "src/features/viewer/viewerTypes",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "viewer"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardHost.web.tsx",
+      "specifier": "../help/helpTheme",
+      "target": "src/features/help/helpTheme",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "help"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardHost.web.tsx",
+      "specifier": "../help/components/HelpViewerLayout",
+      "target": "src/features/help/components/HelpViewerLayout",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "help"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardHost.web.tsx",
+      "specifier": "../help/helpViewerWindow",
+      "target": "src/features/help/helpViewerWindow",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "help"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardProvider.tsx",
+      "specifier": "../help/useHelpOriginTracking",
+      "target": "src/features/help/useHelpOriginTracking",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "help"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardProvider.tsx",
+      "specifier": "../webPages/webPagePolicy",
+      "target": "src/features/webPages/webPagePolicy",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "webPages"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardProvider.tsx",
+      "specifier": "../viewer/viewerTypes",
+      "target": "src/features/viewer/viewerTypes",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "viewer"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardViewer.tsx",
+      "specifier": "../help/components/HelpViewerLayout",
+      "target": "src/features/help/components/HelpViewerLayout",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "help"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardViewer.tsx",
+      "specifier": "../help/helpTheme",
+      "target": "src/features/help/helpTheme",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "help"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardViewer.tsx",
+      "specifier": "../help/helpHtmlActions",
+      "target": "src/features/help/helpHtmlActions",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "help"
+    },
+    {
+      "file": "src/features/entityCards/EntityCardViewer.tsx",
+      "specifier": "../webPages/webPagePolicy",
+      "target": "src/features/webPages/webPagePolicy",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "webPages"
+    },
+    {
+      "file": "src/features/entityCards/StockEntityCard.tsx",
+      "specifier": "../stockBalances/StockProductDetails",
+      "target": "src/features/stockBalances/StockProductDetails",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "stockBalances"
+    },
+    {
+      "file": "src/features/entityCards/StockEntityCard.tsx",
+      "specifier": "../stockBalances/useWarehouseSelection",
+      "target": "src/features/stockBalances/useWarehouseSelection",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "stockBalances"
+    },
+    {
+      "file": "src/features/entityCards/entityApi.ts",
+      "specifier": "../clientOrders/lib/clientOrderOpening",
+      "target": "src/features/clientOrders/lib/clientOrderOpening",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "clientOrders"
+    },
+    {
+      "file": "src/features/entityCards/entityApi.ts",
+      "specifier": "../stockBalances/products",
+      "target": "src/features/stockBalances/products",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "stockBalances"
+    },
+    {
+      "file": "src/features/entityCards/entityCardState.ts",
+      "specifier": "../webPages/webPagePolicy",
+      "target": "src/features/webPages/webPagePolicy",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "webPages"
+    },
+    {
+      "file": "src/features/entityCards/entityCardState.ts",
+      "specifier": "../viewer/viewerTypes",
+      "target": "src/features/viewer/viewerTypes",
+      "kind": "static",
+      "from": "entityCards",
+      "to": "viewer"
+    },
+    {
+      "file": "src/features/entityCards/entityRegistry.tsx",
+      "specifier": "../clientOrders/ClientOrdersMobileScreen",
+      "target": "src/features/clientOrders/ClientOrdersMobileScreen",
+      "kind": "dynamic",
+      "from": "entityCards",
+      "to": "clientOrders"
+    },
+    {
+      "file": "src/features/help/HelpScreen.tsx",
+      "specifier": "../entityCards/EntityCardContext",
+      "target": "src/features/entityCards/EntityCardContext",
+      "kind": "static",
+      "from": "help",
+      "to": "entityCards"
+    },
+    {
+      "file": "src/features/help/components/HelpHtmlMessage.tsx",
+      "specifier": "@/src/features/entityCards/EntityCardContext",
+      "target": "src/features/entityCards/EntityCardContext",
+      "kind": "static",
+      "from": "help",
+      "to": "entityCards"
+    },
+    {
+      "file": "src/features/help/components/HelpHtmlSurface.tsx",
+      "specifier": "../../webPages/webPagePolicy",
+      "target": "src/features/webPages/webPagePolicy",
+      "kind": "static",
+      "from": "help",
+      "to": "webPages"
+    },
+    {
+      "file": "src/features/help/components/HelpListHeader.tsx",
+      "specifier": "../../knowledge/api",
+      "target": "src/features/knowledge/api",
+      "kind": "static",
+      "from": "help",
+      "to": "knowledge"
+    },
+    {
+      "file": "src/features/help/components/HelpMarkdown.tsx",
+      "specifier": "@/src/features/entityCards/EntityCardContext",
+      "target": "src/features/entityCards/EntityCardContext",
+      "kind": "static",
+      "from": "help",
+      "to": "entityCards"
+    },
+    {
+      "file": "src/features/help/helpHtmlLinks.ts",
+      "specifier": "../webPages/webPagePolicy",
+      "target": "src/features/webPages/webPagePolicy",
+      "kind": "static",
+      "from": "help",
+      "to": "webPages"
+    },
+    {
+      "file": "src/features/mail/MailDraftScreen.tsx",
+      "specifier": "@/src/features/profile/ui/ConnectionPrimitives",
+      "target": "src/features/profile/ui/ConnectionPrimitives",
+      "kind": "static",
+      "from": "mail",
+      "to": "profile"
+    },
+    {
+      "file": "src/features/mail/MailDraftScreen.tsx",
+      "specifier": "@/src/features/profile/api/mailConnections",
+      "target": "src/features/profile/api/mailConnections",
+      "kind": "static",
+      "from": "mail",
+      "to": "profile"
+    },
+    {
+      "file": "src/features/services/ui/ServicesCatalogScreen.tsx",
+      "specifier": "@/src/features/navigation/lastServiceRouteStorage",
+      "target": "src/features/navigation/lastServiceRouteStorage",
+      "kind": "static",
+      "from": "services",
+      "to": "navigation"
+    },
+    {
+      "file": "src/features/stockBalances/StockProductDetails.tsx",
+      "specifier": "@/src/features/clientOrders/screen/mobile/FilterLookupPickerPanel",
+      "target": "src/features/clientOrders/screen/mobile/FilterLookupPickerPanel",
+      "kind": "static",
+      "from": "stockBalances",
+      "to": "clientOrders"
+    },
+    {
+      "file": "src/features/stockBalances/StockProductDetails.tsx",
+      "specifier": "@/src/features/clientOrders/lib/clientOrdersUi",
+      "target": "src/features/clientOrders/lib/clientOrdersUi",
+      "kind": "static",
+      "from": "stockBalances",
+      "to": "clientOrders"
+    },
+    {
+      "file": "src/features/stockBalances/StockProductDetails.tsx",
+      "specifier": "@/src/features/clientOrders/screen/mobile/ProductImageGalleryModal",
+      "target": "src/features/clientOrders/screen/mobile/ProductImageGalleryModal",
+      "kind": "static",
+      "from": "stockBalances",
+      "to": "clientOrders"
+    },
+    {
+      "file": "src/features/stockBalances/StockProductsScreen.tsx",
+      "specifier": "@/src/features/clientOrders/screen/mobile/SearchPickerScreen",
+      "target": "src/features/clientOrders/screen/mobile/SearchPickerScreen",
+      "kind": "static",
+      "from": "stockBalances",
+      "to": "clientOrders"
+    },
+    {
+      "file": "src/features/stockBalances/StockProductsScreen.tsx",
+      "specifier": "@/src/features/clientOrders/screen/mobile/FilterLookupPickerPanel",
+      "target": "src/features/clientOrders/screen/mobile/FilterLookupPickerPanel",
+      "kind": "static",
+      "from": "stockBalances",
+      "to": "clientOrders"
+    },
+    {
+      "file": "src/features/stockBalances/StockProductsScreen.tsx",
+      "specifier": "@/src/features/clientOrders/lib/clientOrdersUi",
+      "target": "src/features/clientOrders/lib/clientOrdersUi",
+      "kind": "static",
+      "from": "stockBalances",
+      "to": "clientOrders"
+    },
+    {
+      "file": "src/features/stockBalances/StockProductsScreen.tsx",
+      "specifier": "@/src/features/clientOrders/screen/mobile/ProductImageGalleryModal",
+      "target": "src/features/clientOrders/screen/mobile/ProductImageGalleryModal",
+      "kind": "static",
+      "from": "stockBalances",
+      "to": "clientOrders"
+    },
+    {
+      "file": "src/features/stockBalances/StockTabsPager.tsx",
+      "specifier": "../clientOrders/ClientOrdersPager",
+      "target": "src/features/clientOrders/ClientOrdersPager",
+      "kind": "static",
+      "from": "stockBalances",
+      "to": "clientOrders"
+    },
+    {
+      "file": "src/features/transportTasks/hooks/useTransportTasksScreen.ts",
+      "specifier": "@/src/features/navigation/UnsavedChangesContext",
+      "target": "src/features/navigation/UnsavedChangesContext",
+      "kind": "static",
+      "from": "transportTasks",
+      "to": "navigation"
+    },
+    {
+      "file": "src/features/transportTasks/screen/TransportTasksScreen.tsx",
+      "specifier": "@/src/features/navigation/UnsavedChangesContext",
+      "target": "src/features/navigation/UnsavedChangesContext",
+      "kind": "static",
+      "from": "transportTasks",
+      "to": "navigation"
+    },
+    {
+      "file": "src/features/viewer/AppViewer.ts",
+      "specifier": "../entityCards/EntityCardProvider",
+      "target": "src/features/entityCards/EntityCardProvider",
+      "kind": "static",
+      "from": "viewer",
+      "to": "entityCards"
+    },
+    {
+      "file": "src/features/viewer/AppViewer.ts",
+      "specifier": "../entityCards/EntityCardContext",
+      "target": "src/features/entityCards/EntityCardContext",
+      "kind": "static",
+      "from": "viewer",
+      "to": "entityCards"
+    },
+    {
+      "file": "src/features/viewer/AppViewer.ts",
+      "specifier": "../entityCards/EntityCardContext",
+      "target": "src/features/entityCards/EntityCardContext",
+      "kind": "static",
+      "from": "viewer",
+      "to": "entityCards"
+    },
+    {
+      "file": "src/features/viewer/viewerTypes.ts",
+      "specifier": "../help/helpHtml",
+      "target": "src/features/help/helpHtml",
+      "kind": "static",
+      "from": "viewer",
+      "to": "help"
+    },
+    {
+      "file": "src/features/webPages/WebPageContent.tsx",
+      "specifier": "../help/helpTheme",
+      "target": "src/features/help/helpTheme",
+      "kind": "static",
+      "from": "webPages",
+      "to": "help"
+    },
+    {
+      "file": "src/features/webPages/WebPageContent.web.tsx",
+      "specifier": "../help/helpTheme",
+      "target": "src/features/help/helpTheme",
+      "kind": "static",
+      "from": "webPages",
+      "to": "help"
+    }
+  ],
+  "nonLiteralImports": []
+}
