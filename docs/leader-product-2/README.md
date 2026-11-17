@@ -33,3 +33,6 @@ Baseline commands/results are recorded separately in baseline.md. Unit mocks do 
 
 ## Progress 2026-11-17
 Fork identity and legacy updater quarantine committed as 7865ce6. Standalone native/Web Re.Pack host, two delivery-fixture remote builds and signature/activation contract tests added; see baseline.md. Remaining 1C acceptance: trusted durable cache/native crypto/resolver, actual remote execution, LKG/recovery with persistent data, update-one-remote and rollback on device. Existing product has not been replaced. Device discovery currently empty; external resources still deferred. The unchecked backlog above remains authoritative for unfinished work.
+
+## Audit expansion 2026-11-17
+AST inventory expanded to app.config.ts/index.js: 759 files / 3844 edges / 75 cross-feature imports. Generated Expo-package dispositions and route list in expo-and-routes.md; scenario acceptance register in parity.md. Important historical gap: API dev has onec-personal but no personal-mail directory; investigate original working reachability/history, do not silently exclude mail or copy main wholesale. Native credentials adapter was pushed as ec1d013; all native/device limits remain as recorded in baseline.md.
