@@ -184,7 +184,7 @@ export async function createWebHost(profile: LocalWebProfile) {
         compatibleApis: ['1.0.0'],
         modules: lease.session.modules,
         capabilities: {},
-        contracts: {},
+        contracts: lease.session.permissions ? { authActions: ['1.0.0'] } : {},
         moduleContracts: { qr: ['1.0.0'], help: ['1.0.0'] },
       };
       const data = bindAuthorizedGeneration(authority, lease, fence);
@@ -243,6 +243,13 @@ export async function createWebHost(profile: LocalWebProfile) {
               if (
                 lease.session.modules.some(
                   module => !confirmed.modules.includes(module),
+                ) ||
+                Object.entries(lease.session.permissions || {}).some(
+                  ([module, actions]) =>
+                    actions.some(
+                      action =>
+                        !confirmed.permissions?.[module]?.includes(action),
+                    ),
                 )
               )
                 throw new CentralDenied();

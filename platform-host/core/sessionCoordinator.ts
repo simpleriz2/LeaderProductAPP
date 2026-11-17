@@ -1,6 +1,6 @@
 import {snapshotConfirmedSession} from './confirmedSession.ts';
 /** Auth reports confirmed identity; modules own business work. No business imports. */
-export type ConfirmedSession = { company: string; user: string; modules: readonly string[]; confirmation: string };
+export type ConfirmedSession = { company: string; user: string; modules: readonly string[]; confirmation: string; permissions?:Readonly<Record<string,readonly string[]>> };
 export type SessionLease = { session: ConfirmedSession; online: boolean; signal: AbortSignal; assertCurrent(): void };
 export interface SessionStore {
   loadLastConfirmed(): Promise<ConfirmedSession | null>;

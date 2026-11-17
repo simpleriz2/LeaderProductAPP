@@ -53,7 +53,7 @@ jobs:
         with:
           repository: simpleriz2/LeaderProductAPI
           # Exact compatible fork protocol; never follow upstream/main or floating latest.
-          ref: fa02b0cfe0c16d2133af39ad70f3b3054a2ae6f8
+          ref: c5778935e6b7bb88e5e1b7cd5bae7ba95a687ffb
           path: partner-api
           sparse-checkout: dev/platform-pilot
           persist-credentials: false
@@ -120,7 +120,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: simpleriz2/LeaderProductAPI
-          ref: fa02b0cfe0c16d2133af39ad70f3b3054a2ae6f8
+          ref: c5778935e6b7bb88e5e1b7cd5bae7ba95a687ffb
           path: partner-api
           sparse-checkout: dev/platform-pilot
           persist-credentials: false
