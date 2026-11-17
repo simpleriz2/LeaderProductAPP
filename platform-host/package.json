@@ -22,7 +22,8 @@
     "test:pilot-session": "node --experimental-strip-types --test dev/session/pilotProof.test.cjs",
     "test:web-host": "node scripts/testWebHost.cjs",
     "dev:pilot-web": "node dev/web-host/start.cjs",
-    "test:platform-variants": "node --experimental-strip-types --test dev/release/platformVariants.test.cjs"
+    "test:platform-variants": "node --experimental-strip-types --test dev/release/platformVariants.test.cjs",
+    "test:company-window": "node --experimental-strip-types --test dev/http/companyWindow.test.cjs"
   },
   "dependencies": {
     "react": "19.3.0",

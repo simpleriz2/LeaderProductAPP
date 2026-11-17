@@ -1,15 +1,16 @@
 import {utf8Size} from './utf8.ts';
 import type {SessionAuthority} from './sessionAuthority';
 import type { SessionLease } from './sessionCoordinator';
+export type CompanyReleaseBinding = Readonly<{company:string; id:string; api:string}>;
 export type ServiceMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 export type ServiceKind = 'company' | 'artifacts' | 'help';
 export type ServiceAssignment = { kind: ServiceKind; company: string; audience: string; endpoint: string };
-export type ServiceToken = { value: string; company: string; user: string; audience: string; expiresAt: number };
+export type ServiceToken = { value: string; company: string; user: string; audience: string; expiresAt: number; releaseId?:string; api?:string };
 export type ServiceAvailability = 'unknown' | 'reachable' | 'unavailable' | 'denied';
 export interface ServiceRoutingPorts {
   /** Only authenticated Central discovery may implement this port. No user-entered URL setter. */
   assignment(kind: ServiceKind, company: string): Promise<ServiceAssignment>;
-  restrictedToken(kind: ServiceKind, company: string, audience: string): Promise<ServiceToken>;
+  restrictedToken(kind: ServiceKind, company: string, audience: string, release?:CompanyReleaseBinding): Promise<ServiceToken>;
   /** Native/Web adapters MUST reject redirects before forwarding Authorization. */
   send(request: { url: string; method: ServiceMethod; body?: string; token: string; signal: AbortSignal; redirect: 'error' }): Promise<{ status: number; body: unknown }>;
 }
@@ -33,7 +34,16 @@ export class ServiceRouter {
   async request(kind: ServiceKind, relativePath: string, body?: unknown): Promise<{ status: number; body: unknown }> {
     return this.execute(kind,relativePath,{method:body===undefined?'GET':'POST',body});
   }
+  /** The host supplies its verified ACTIVE activation, never the latest discovery candidate. */
+  forCompanyRelease(release:CompanyReleaseBinding) {
+    if(!release || release.company!==this.lease.session.company || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(release.id) || !/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(release.api))throw Error('Invalid active company release');
+    const pinned=Object.freeze({...release});
+    return Object.freeze({execute:(path:string,operation:{method:ServiceMethod;body?:unknown})=>this.perform('company',path,operation,pinned)});
+  }
   async execute(kind: ServiceKind, relativePath: string, operation: {method: ServiceMethod; body?: unknown}): Promise<{status:number;body:unknown}> {
+    return this.perform(kind,relativePath,operation);
+  }
+  private async perform(kind:ServiceKind,relativePath:string,operation:{method:ServiceMethod;body?:unknown},release?:CompanyReleaseBinding):Promise<{status:number;body:unknown}> {
     this.lease.assertCurrent();
     if(!operation || !['GET','POST','PUT','DELETE'].includes(operation.method)) throw Error('Unsupported service method');
     if(operation.method==='GET' && operation.body!==undefined) throw Error('GET body forbidden');
@@ -51,9 +61,10 @@ export class ServiceRouter {
     const base = `${endpoint.origin}${endpoint.pathname.replace(/\/+$/,'')}/`;
     const target = new URL(relativePath.slice(1),base);
     if(target.origin !== endpoint.origin || !target.pathname.startsWith(new URL(base).pathname)) throw Error('Service path escaped assignment');
-    const token = await this.ports.restrictedToken(kind,assignment.company,assignment.audience);
+    const token = await this.ports.restrictedToken(kind,assignment.company,assignment.audience,release);
     this.lease.assertCurrent();
     if(token.company !== assignment.company || token.user !== this.lease.session.user || token.audience !== assignment.audience || !Number.isFinite(token.expiresAt) || token.expiresAt <= Date.now() || typeof token.value !== 'string' || !/^[A-Za-z0-9._~=-]+$/.test(token.value)) throw Error('Wrong service token scope');
+    if(release && (token.releaseId!==release.id || token.api!==release.api))throw Error('Wrong active release token');
     try {
       const response = await this.ports.send({url:target.toString(),method:operation.method,body:serialized,token:token.value,signal:this.lease.signal,redirect:'error'});
       this.lease.assertCurrent();
