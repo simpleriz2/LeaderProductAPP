@@ -1,15 +1,16 @@
 {
   "android": {
-    "version": 8,
+    "version": 9,
     "versionName": "0.1.0",
     "runtime": "lp2-android-d8911b2e2fb477ee280ef47d",
-    "nativeFingerprint": "3968cd58911d08755c2751f9d3cfd347382cb6a85059d0d3faa8434cb8d0d77f",
+    "nativeFingerprint": "964a3cde98cbc322722ea3624c0abc63ee052e803e391ca8e04ba842e4c5a0e1",
     "capabilities": {
       "secureSession": [
         1
       ],
       "http": [
-        1
+        1,
+        2
       ],
       "releaseCrypto": [
         1
@@ -38,7 +39,7 @@
     }
   },
   "web": {
-    "version": 3,
+    "version": 4,
     "runtime": "lp2-web-201b5d2d7e8dd718645fd0bf",
     "libraries": {
       "react": "19.3.0",

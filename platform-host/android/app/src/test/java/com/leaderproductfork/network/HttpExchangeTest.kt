@@ -19,10 +19,17 @@ class HttpExchangeTest {
     private val worker=Thread {
       while(!socket.isClosed) try {
         socket.accept().use { client ->
-          val reader=client.getInputStream().bufferedReader();val route=reader.readLine().split(' ')[1]
+          val reader=client.getInputStream().bufferedReader();val requestLine=reader.readLine().split(' ');val route=requestLine[1]
           val headers=ArrayList<String>();while(true){val line=reader.readLine()?:break;if(line.isEmpty())break;headers.add(line)}
           val output=client.getOutputStream()
           when(route){
+            "/mutation" -> {
+              check(requestLine[0] in listOf("PUT","DELETE"));check(headers.any{it.equals("Authorization: Bearer fixture-scoped",true)})
+              val length=headers.firstOrNull{it.startsWith("Content-Length:",true)}?.substringAfter(":")?.trim()?.toInt()?:0
+              val body=CharArray(length);var offset=0;while(offset<length){val n=reader.read(body,offset,length-offset);check(n>0);offset+=n}
+              check(String(body)==if(requestLine[0]=="PUT") "{\"description\":null}" else "")
+              output.write("HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())
+            }
             "/redirect" -> output.write("HTTP/1.1 302 Found\r\nLocation: $origin/target\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())
             "/target" -> {leaked.incrementAndGet();output.write("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())}
             "/bytes" -> {
@@ -50,6 +57,12 @@ class HttpExchangeTest {
       val result=call(server.origin+"/bytes");assertEquals(200,result.first);assertArrayEquals(byteArrayOf(0,-1,1,-128),result.second)
       assertThrows(IllegalStateException::class.java){call(server.origin+"/redirect")};assertEquals(0,server.leaked.get())
     }
+  }
+  @Test fun explicitMutationsReachRealServerWithoutChangingVerbOrNullBody(){
+    Fixture().use { server -> for(method in listOf("PUT","DELETE")){
+      val connection=URL(server.origin+"/mutation").openConnection() as HttpURLConnection
+      try{val result=HttpExchange.execute(connection,method,"fixture-scoped",if(method=="PUT") "{\"description\":null}" else null,AtomicBoolean(false),false);assertEquals(204,result.first);assertEquals(0,result.second.size)}finally{connection.disconnect()}
+    }}
   }
   @Test fun streamedOversizeAndAlreadyCancelledRequestsAreRejected(){
     Fixture().use{server->assertThrows(IllegalStateException::class.java){call(server.origin+"/large",false)}}

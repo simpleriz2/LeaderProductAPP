@@ -46,3 +46,10 @@ test('body reader cancellation handles abort even for a stalled custom stream; e
  const fetcher=async()=>new Response(new ReadableStream({}));await assert.rejects(createWebHttpTransport(fetcher,20)({url:'http://127.0.0.1/fixture',method:'GET',token:'scoped',redirect:'error',signal:new AbortController().signal}),/deadline exceeded/);
  const aborted=new AbortController();aborted.abort();await assert.rejects(createWebHttpTransport(fetcher,20)({url:'http://127.0.0.1/fixture',method:'GET',token:'scoped',redirect:'error',signal:aborted.signal}),/Request aborted/);
 });
+test('real Web JSON transport preserves PUT null updates and bodyless DELETE',async t=>{
+ const observed=[];const source=await server(async(req,res)=>{let body='';for await(const chunk of req)body+=chunk;observed.push([req.method,body,req.headers.authorization]);res.writeHead(204);res.end();});t.after(source.close);
+ const send=createWebHttpTransport();const request={url:source.url,token:'scoped-fixture',redirect:'error',signal:new AbortController().signal};
+ assert.deepEqual(await send({...request,method:'PUT',body:'{"description":null}'}),{status:204,body:null});
+ assert.deepEqual(await send({...request,method:'DELETE'}),{status:204,body:null});
+ assert.deepEqual(observed,[['PUT','{"description":null}','Bearer scoped-fixture'],['DELETE','','Bearer scoped-fixture']]);
+});

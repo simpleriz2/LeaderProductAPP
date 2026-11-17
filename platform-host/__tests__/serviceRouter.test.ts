@@ -44,3 +44,16 @@ test('session authority is mandatory and denies before discovery/token/network',
  const denied:SessionAuthority={run:async()=>{throw Error('Authority changed');}};
  const router=new ServiceRouter(lease,ports,['http://127.0.0.1:3000'],denied);await expect(router.request('company','/records')).rejects.toThrow('Authority changed');expect(ports.assignment).not.toHaveBeenCalled();expect(ports.restrictedToken).not.toHaveBeenCalled();expect(ports.send).not.toHaveBeenCalled();expect(router.status('company')).toBe('unknown');
 });
+
+test('explicit QR mutations preserve method/body and reject unsupported operations before credentials',async()=>{
+ const router=new ServiceRouter(lease,ports,['http://127.0.0.1:3000'],authority);
+ await router.execute('company','/qr/owned',{method:'PUT',body:{description:null}});
+ expect(ports.send).toHaveBeenLastCalledWith(expect.objectContaining({method:'PUT',body:'{"description":null}',token:'scoped-token'}));
+ await router.execute('company','/qr/owned',{method:'DELETE'});
+ expect(ports.send).toHaveBeenLastCalledWith(expect.objectContaining({method:'DELETE',body:undefined}));
+ ports.assignment=jest.fn(ports.assignment);ports.restrictedToken=jest.fn(ports.restrictedToken);(ports.send as jest.Mock).mockClear();
+ for(const operation of [{method:'PATCH'}, {method:'GET',body:{}}, {method:'PUT',body:()=>{}}, {method:'POST',body:'x'.repeat(2*1024*1024)}]){
+   await expect(router.execute('company','/qr/owned',operation as never)).rejects.toThrow();
+ }
+ expect(ports.assignment).not.toHaveBeenCalled();expect(ports.restrictedToken).not.toHaveBeenCalled();expect(ports.send).not.toHaveBeenCalled();
+});

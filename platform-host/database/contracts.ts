@@ -1,3 +1,5 @@
+import {utf8Size} from '../core/utf8.ts';
+export {utf8Size} from '../core/utf8.ts';
 /** Internal database-driver protocol. Feature modules receive ModuleDatabase, never SQL/driver handles. */
 export type DataScope={company:string;user:string;generation:string};
 export type DataRow={id:string;revision:number;payload:string};
@@ -15,9 +17,7 @@ export interface DataDriver{
   verify(scope:DataScope,schemas:Readonly<Record<string,number>>):Promise<void>;
 }
 export const identifier=(value:string):string=>{if(typeof value!=='string'||!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value))throw Error('Invalid data namespace');return value;};
-export function utf8Size(value:string):number{
-  let size=0;for(let i=0;i<value.length;i++){const code=value.charCodeAt(i);if(code<128)size++;else if(code<2048)size+=2;else if(code>=0xd800&&code<=0xdbff){const next=value.charCodeAt(++i);if(!(next>=0xdc00&&next<=0xdfff))throw Error('Invalid Unicode');size+=4;}else{if(code>=0xdc00&&code<=0xdfff)throw Error('Invalid Unicode');size+=3;}}return size;
-}
+
 export const recordId=(value:string):string=>{if(typeof value!=='string'||!value.length||value.length>512||/[\u0000-\u001f]/.test(value)||utf8Size(value)>512)throw Error('Invalid record id');return value;};
 export function jsonPayload(value:string):number{if(typeof value!=='string'||value.length>2*1024*1024)throw Error('Invalid record payload');const size=utf8Size(value);if(size>2*1024*1024)throw Error('Record payload too large');JSON.parse(value);return size;}
 export function validateScope(scope:DataScope):void{for(const value of [scope.company,scope.user,scope.generation])identifier(value);}

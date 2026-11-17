@@ -7,6 +7,8 @@ import java.io.ByteArrayOutputStream
 /** Real JVM HTTP implementation used by Android's bounded bridge. No redirects or shared cache. */
 object HttpExchange {
   fun execute(connection: HttpURLConnection, method: String, token: String, body: String?, cancelled: AtomicBoolean, binary: Boolean): Pair<Int, ByteArray> {
+    require(method in listOf("GET", "POST", "PUT", "DELETE"))
+    require(method != "GET" || body == null)
     check(!cancelled.get())
     connection.instanceFollowRedirects = false
     connection.useCaches = false

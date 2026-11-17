@@ -27,7 +27,8 @@ class LeaderHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaM
     var state: RequestState? = null
     try {
       require(id.matches(Regex("[A-Za-z0-9._-]{1,128}")))
-      require(method == "GET" || method == "POST")
+      require(method in listOf("GET", "POST", "PUT", "DELETE"))
+      require(method != "GET" || body == null)
       require(token.matches(Regex("[A-Za-z0-9._~=-]{1,8192}")))
       require(body == null || body.toByteArray(Charsets.UTF_8).size <= 2 * 1024 * 1024)
       val target = URL(url)

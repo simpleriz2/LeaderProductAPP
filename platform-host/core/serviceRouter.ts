@@ -1,5 +1,7 @@
+import {utf8Size} from './utf8.ts';
 import type {SessionAuthority} from './sessionAuthority';
 import type { SessionLease } from './sessionCoordinator';
+export type ServiceMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 export type ServiceKind = 'company' | 'artifacts' | 'help';
 export type ServiceAssignment = { kind: ServiceKind; company: string; audience: string; endpoint: string };
 export type ServiceToken = { value: string; company: string; user: string; audience: string; expiresAt: number };
@@ -9,7 +11,7 @@ export interface ServiceRoutingPorts {
   assignment(kind: ServiceKind, company: string): Promise<ServiceAssignment>;
   restrictedToken(kind: ServiceKind, company: string, audience: string): Promise<ServiceToken>;
   /** Native/Web adapters MUST reject redirects before forwarding Authorization. */
-  send(request: { url: string; method: 'GET' | 'POST'; body?: string; token: string; signal: AbortSignal; redirect: 'error' }): Promise<{ status: number; body: unknown }>;
+  send(request: { url: string; method: ServiceMethod; body?: string; token: string; signal: AbortSignal; redirect: 'error' }): Promise<{ status: number; body: unknown }>;
 }
 export class ServiceRouter {
   private availability = new Map<ServiceKind, ServiceAvailability>();
@@ -29,7 +31,15 @@ export class ServiceRouter {
   }
   status(kind: ServiceKind): ServiceAvailability { return this.availability.get(kind) || 'unknown'; }
   async request(kind: ServiceKind, relativePath: string, body?: unknown): Promise<{ status: number; body: unknown }> {
+    return this.execute(kind,relativePath,{method:body===undefined?'GET':'POST',body});
+  }
+  async execute(kind: ServiceKind, relativePath: string, operation: {method: ServiceMethod; body?: unknown}): Promise<{status:number;body:unknown}> {
     this.lease.assertCurrent();
+    if(!operation || !['GET','POST','PUT','DELETE'].includes(operation.method)) throw Error('Unsupported service method');
+    if(operation.method==='GET' && operation.body!==undefined) throw Error('GET body forbidden');
+    const serialized=operation.body===undefined?undefined:JSON.stringify(operation.body);
+    if(operation.body!==undefined && serialized===undefined) throw Error('Invalid JSON body');
+    if(serialized!==undefined && utf8Size(serialized)>2*1024*1024) throw Error('Request too large');
     if(!this.lease.online) throw Error('Service requires online confirmation');
     const decoded = decodeURIComponent(relativePath);
     if(!relativePath.startsWith('/') || decoded.startsWith('//') || /[\\#\u0000-\u001f]/.test(decoded) || decoded.split(/[/?]/).some(p=>p==='.'||p==='..')) throw Error('Invalid service path');
@@ -44,9 +54,8 @@ export class ServiceRouter {
     const token = await this.ports.restrictedToken(kind,assignment.company,assignment.audience);
     this.lease.assertCurrent();
     if(token.company !== assignment.company || token.user !== this.lease.session.user || token.audience !== assignment.audience || !Number.isFinite(token.expiresAt) || token.expiresAt <= Date.now() || typeof token.value !== 'string' || !/^[A-Za-z0-9._~=-]+$/.test(token.value)) throw Error('Wrong service token scope');
-    const serialized = body === undefined ? undefined : JSON.stringify(body);
     try {
-      const response = await this.ports.send({url:target.toString(),method:body===undefined?'GET':'POST',body:serialized,token:token.value,signal:this.lease.signal,redirect:'error'});
+      const response = await this.ports.send({url:target.toString(),method:operation.method,body:serialized,token:token.value,signal:this.lease.signal,redirect:'error'});
       this.lease.assertCurrent();
       this.availability.set(kind,response.status===401||response.status===403?'denied':response.status>=500?'unavailable':'reachable');
       return response;
