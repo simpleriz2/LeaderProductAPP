@@ -1,3 +1,5 @@
+import {createCentralClient,CentralDenied} from '../core/centralClient';
+import {createWebCentralExchange} from '../adapters/central.web';
 import {
   createOwnedModuleData,
   type RemoteModuleFactory,
@@ -43,8 +45,6 @@ import { openVerifiedWebFederation } from '../adapters/federation.web';
 import { createWebTrust } from '../adapters/trust.web';
 import { createWebHttpTransport } from '../adapters/http.web';
 import { createWebArtifactTransport } from '../adapters/artifacts.web';
-import { withWebRequestDeadline } from '../adapters/requestDeadline.web';
-import { readResponseBytes } from '../adapters/httpBytes.web';
 import { createIndexedDbDriver } from '../database/indexedDbDriver.web';
 import { createWebGenerationLock } from '../database/generationLock.web';
 import { createGenerationFence } from '../database/generationFence';
@@ -80,7 +80,6 @@ type Discovery = {
   offlineGrant: SignedOfflineSession;
 };
 class RestartRequired extends Error {}
-class CentralDenied extends Error {}
 /** Local pilot composition. No production defaults, persistent bearer, arbitrary URL setter or legacy business imports. */
 export async function createWebHost(profile: LocalWebProfile) {
   const trust = createWebTrust(profile.roots),
@@ -143,35 +142,7 @@ export async function createWebHost(profile: LocalWebProfile) {
           : ''),
     });
   };
-  async function central(
-    path: '/login' | '/discovery' | '/tokens',
-    body: unknown,
-    signal: AbortSignal,
-  ) {
-    return withWebRequestDeadline(signal, 15000, async bounded => {
-      const response = await fetch(profile.central + path, {
-        method: body === undefined ? 'GET' : 'POST',
-        headers: {
-          Accept: 'application/json',
-          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-          ...(path !== '/login' && universal
-            ? { Authorization: `Bearer ${universal}` }
-            : {}),
-        },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-        signal: bounded,
-        redirect: 'error',
-        credentials: 'omit',
-        cache: 'no-store',
-      });
-      const bytes = await readResponseBytes(response, bounded, 256 * 1024);
-      if (response.status !== 200)
-        throw response.status === 401 && path !== '/login'
-          ? new CentralDenied()
-          : Error('Central request failed');
-      return JSON.parse(new TextDecoder().decode(bytes));
-    });
-  }
+  const central=createCentralClient(profile.central,createWebCentralExchange(),()=>universal);
   const modules = ['qr', 'help'].map(id => ({
     id,
     get requiresOnline() {

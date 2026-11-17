@@ -61,3 +61,10 @@ test('module suspension cancels actual stalled Company body without logging out 
  const binding={company:'alpha',id:'set-1',api:'1.0.0'},pending=router.forCompanyRelease(binding,scope.signal).execute('/stall',{method:'GET'});const denied=assert.rejects(pending,/aborted/);await headers;scope.abort();await denied;
  assert.equal(session.signal.aborted,false);assert.equal(router.status('company'),'unknown');assert.deepEqual(await router.forCompanyRelease(binding).execute('/ok',{method:'GET'}),{status:200,body:{ok:true}});
 });
+test('actual Central exchange omits universal bearer on login and refuses redirects/handles denial before JSON',async t=>{
+ const{createCentralClient,CentralDenied}=require('../../core/centralClient.ts');const{createWebCentralExchange}=require('../../adapters/central.web.ts');let leaked=0;
+ const target=await server((req,res)=>{leaked++;res.end('{}');});t.after(target.close);
+ const source=await server((req,res)=>{if(req.url==='/login'){assert.equal(req.headers.authorization,undefined);res.end('{"token":"fixture-session"}');}else{assert.equal(req.headers.authorization,'Bearer fixture-central');if(req.url==='/discovery'){res.writeHead(401);res.end('not JSON');}else{res.writeHead(303,{location:target.url});res.end();}}});t.after(source.close);
+ const central=createCentralClient(source.url,createWebCentralExchange(),()=> 'fixture-central'),signal=new AbortController().signal;
+ assert.deepEqual(await central('/login',{user:'тест'},signal),{token:'fixture-session'});await assert.rejects(central('/discovery',undefined,signal),CentralDenied);await assert.rejects(central('/tokens',{audience:'company:alpha'},signal));assert.equal(leaked,0);
+});
