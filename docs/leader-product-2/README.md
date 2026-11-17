@@ -49,3 +49,6 @@ No deployed/offline client exists on these prototype formats. Future deployed fo
 
 ## Android bootstrap cache slice
 `LeaderReleaseStorage` now supplies a private native ReleaseStorage adapter: bounded verified blobs, company/user namespaces, isolated staging, immutable promotion and one atomic current/LKG/prepared-data pointer record independent of business SQLite. Capability releaseStorage:1 requires fork APK versionCode2. No native remote execution or business migration has been enabled. Single RN/app process is supported; multi-process locking, orphan GC/retention, large-file streaming, damaged-pointer recovery and device kill/power-loss acceptance remain pending.
+
+## Native binary transport
+Private artifact transport is now available on both Android and Web through ServiceRouter; Android APK versionCode3 declares artifactHttp:1. Native cache/trust/network adapters are implemented but still await bootstrap integration, real prepared business-data generations and device remote execution/recovery acceptance.

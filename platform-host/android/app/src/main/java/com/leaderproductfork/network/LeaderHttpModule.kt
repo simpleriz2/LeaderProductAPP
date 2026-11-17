@@ -1,5 +1,6 @@
 package com.leaderproduct.app.fork.network
 import com.facebook.react.bridge.*
+import android.util.Base64
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
@@ -8,7 +9,7 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Bounded JSON API transport. Redirects are refused before credentials can be forwarded. */
+/** Bounded JSON and binary API transport. Redirects are refused before credentials can be forwarded. */
 class LeaderHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaModule(context) {
   private data class RequestState(val connection: HttpURLConnection, val cancelled: AtomicBoolean = AtomicBoolean(false))
   private val requests = ConcurrentHashMap<String, RequestState>()
@@ -16,6 +17,13 @@ class LeaderHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaM
   override fun getName() = "LeaderHttp"
   @ReactMethod
   fun request(id: String, url: String, method: String, token: String, body: String?, promise: Promise) {
+    start(id,url,method,token,body,false,promise)
+  }
+  @ReactMethod
+  fun requestBytes(id: String, url: String, token: String, promise: Promise) {
+    start(id,url,"GET",token,null,true,promise)
+  }
+  private fun start(id: String, url: String, method: String, token: String, body: String?, binary: Boolean, promise: Promise) {
     var state: RequestState? = null
     try {
       require(id.matches(Regex("[A-Za-z0-9._-]{1,128}")))
@@ -31,35 +39,11 @@ class LeaderHttpModule(context: ReactApplicationContext) : ReactContextBaseJavaM
       val owned = state
       executor.execute {
         try {
-          check(!owned.cancelled.get())
-          connection.instanceFollowRedirects = false
-          connection.connectTimeout = 10000
-          connection.readTimeout = 15000
-          connection.requestMethod = method
-          connection.setRequestProperty("Authorization", "Bearer $token")
-          connection.setRequestProperty("Accept", "application/json")
-          if (body != null) {
-            connection.doOutput = true
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-          }
-          check(!owned.cancelled.get())
-          val status = connection.responseCode
-          check(status !in 300..399) { "Redirect refused" }
-          val stream = if (status >= 400) connection.errorStream else connection.inputStream
-          val output = java.io.ByteArrayOutputStream()
-          stream?.use {
-            val buffer = ByteArray(8192)
-            while (true) {
-              check(!owned.cancelled.get())
-              val count = it.read(buffer)
-              if (count < 0) break
-              check(output.size() + count <= 2 * 1024 * 1024) { "Response too large" }
-              output.write(buffer, 0, count)
-            }
-          }
-          check(!owned.cancelled.get())
-          promise.resolve(Arguments.createMap().apply { putInt("status", status); putString("body", output.toString("UTF-8")) })
+          val (status, bytes) = HttpExchange.execute(connection,method,token,body,owned.cancelled,binary)
+          promise.resolve(Arguments.createMap().apply {
+            putInt("status",status)
+            putString("body",if(binary) Base64.encodeToString(bytes,Base64.NO_WRAP) else bytes.toString(Charsets.UTF_8))
+          })
         } catch (error: Exception) { promise.reject("SERVICE_REQUEST_FAILED", "Service request failed or was cancelled", error) }
         finally { requests.remove(id, owned); connection.disconnect() }
       }

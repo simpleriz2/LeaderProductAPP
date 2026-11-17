@@ -1,5 +1,5 @@
 {
-  "androidVersionCode": 2,
+  "androidVersionCode": 3,
   "versionName": "0.1.0",
   "webHostVersion": 1,
   "sharedAbi": 1,
@@ -17,6 +17,9 @@
       1
     ],
     "releaseStorage": [
+      1
+    ],
+    "artifactHttp": [
       1
     ]
   }
