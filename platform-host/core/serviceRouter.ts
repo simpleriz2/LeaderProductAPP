@@ -2,7 +2,7 @@ import {utf8Size} from './utf8.ts';
 import type {SessionAuthority} from './sessionAuthority';
 import type { SessionLease } from './sessionCoordinator';
 export type CompanyReleaseBinding = Readonly<{company:string; id:string; api:string}>;
-export type ServiceMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+export type ServiceMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 export type ServiceKind = 'company' | 'artifacts' | 'help';
 export type ServiceAssignment = { kind: ServiceKind; company: string; audience: string; endpoint: string };
 export type ServiceToken = { value: string; company: string; user: string; audience: string; expiresAt: number; releaseId?:string; api?:string };
@@ -45,7 +45,7 @@ export class ServiceRouter {
   }
   private async perform(kind:ServiceKind,relativePath:string,operation:{method:ServiceMethod;body?:unknown},release?:CompanyReleaseBinding,scopeSignal?:AbortSignal):Promise<{status:number;body:unknown}> {
     this.lease.assertCurrent();
-    if(!operation || !['GET','POST','PUT','DELETE'].includes(operation.method)) throw Error('Unsupported service method');
+    if(!operation || !['GET','POST','PUT','DELETE','PATCH'].includes(operation.method)) throw Error('Unsupported service method');
     if(operation.method==='GET' && operation.body!==undefined) throw Error('GET body forbidden');
     const serialized=operation.body===undefined?undefined:JSON.stringify(operation.body);
     if(operation.body!==undefined && serialized===undefined) throw Error('Invalid JSON body');

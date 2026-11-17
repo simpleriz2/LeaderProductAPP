@@ -1,8 +1,7 @@
 package com.leaderproduct.app.fork.network
 import java.net.ServerSocket
 import java.net.InetAddress
-import java.net.URL
-import java.net.HttpURLConnection
+import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -19,15 +18,26 @@ class HttpExchangeTest {
     private val worker=Thread {
       while(!socket.isClosed) try {
         socket.accept().use { client ->
-          val reader=client.getInputStream().bufferedReader();val requestLine=reader.readLine().split(' ');val route=requestLine[1]
-          val headers=ArrayList<String>();while(true){val line=reader.readLine()?:break;if(line.isEmpty())break;headers.add(line)}
+          val input=client.getInputStream()
+          fun line():String{val bytes=ByteArrayOutputStream();while(true){val byte=input.read();if(byte<0||byte==10)break;if(byte!=13)bytes.write(byte)};return bytes.toString("UTF-8")}
+          val requestLine=line().split(' ');val route=requestLine[1]
+          val headers=ArrayList<String>();while(true){val header=line();if(header.isEmpty())break;headers.add(header)}
+          val length=headers.firstOrNull{it.startsWith("Content-Length:",true)}?.substringAfter(":")?.trim()?.toInt()?:0
+          val body=input.readNBytes(length).toString(Charsets.UTF_8)
           val output=client.getOutputStream()
           when(route){
+            "/public" -> {
+              check(headers.none{it.startsWith("Authorization:",true)})
+              check(requestLine[0]=="POST" && body=="{\"user\":\"тест\",\"password\":\"fixture-only\"}")
+              output.write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}".toByteArray())
+            }
+            "/stall" -> {
+              output.write("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n1\r\nx\r\n".toByteArray());output.flush()
+              while(!socket.isClosed){Thread.sleep(10);output.write("1\r\nx\r\n".toByteArray());output.flush()}
+            }
             "/mutation" -> {
-              check(requestLine[0] in listOf("PUT","DELETE"));check(headers.any{it.equals("Authorization: Bearer fixture-scoped",true)})
-              val length=headers.firstOrNull{it.startsWith("Content-Length:",true)}?.substringAfter(":")?.trim()?.toInt()?:0
-              val body=CharArray(length);var offset=0;while(offset<length){val n=reader.read(body,offset,length-offset);check(n>0);offset+=n}
-              check(String(body)==if(requestLine[0]=="PUT") "{\"description\":null}" else "")
+              check(requestLine[0] in listOf("PUT","DELETE","PATCH"));check(headers.any{it.equals("Authorization: Bearer fixture-scoped",true)})
+              check(body==if(requestLine[0] in listOf("PUT","PATCH")) "{\"description\":null}" else "")
               output.write("HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())
             }
             "/redirect" -> output.write("HTTP/1.1 302 Found\r\nLocation: $origin/target\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())
@@ -49,8 +59,8 @@ class HttpExchangeTest {
     override fun close(){socket.close();worker.join(1000);failure.get()?.let{throw AssertionError("Fixture failed",it)}}
   }
   private fun call(url:String,binary:Boolean=true):Pair<Int,ByteArray>{
-    val connection=URL(url).openConnection() as HttpURLConnection
-    try{return HttpExchange.execute(connection,"GET","fixture-scoped",null,AtomicBoolean(false),binary)}finally{connection.disconnect()}
+    val call=HttpExchange.createCall(url,"GET","fixture-scoped",null,binary)
+    try{return HttpExchange.execute(call,AtomicBoolean(false),binary)}finally{call.cancel()}
   }
   @Test fun binaryBytesAndNoRedirectCredentialLeakOverRealLoopback(){
     Fixture().use { server ->
@@ -59,14 +69,24 @@ class HttpExchangeTest {
     }
   }
   @Test fun explicitMutationsReachRealServerWithoutChangingVerbOrNullBody(){
-    Fixture().use { server -> for(method in listOf("PUT","DELETE")){
-      val connection=URL(server.origin+"/mutation").openConnection() as HttpURLConnection
-      try{val result=HttpExchange.execute(connection,method,"fixture-scoped",if(method=="PUT") "{\"description\":null}" else null,AtomicBoolean(false),false);assertEquals(204,result.first);assertEquals(0,result.second.size)}finally{connection.disconnect()}
+    Fixture().use { server -> for(method in listOf("PUT","DELETE","PATCH")){
+      val call=HttpExchange.createCall(server.origin+"/mutation",method,"fixture-scoped",if(method in listOf("PUT","PATCH")) "{\"description\":null}" else null,false)
+      try{val result=HttpExchange.execute(call,AtomicBoolean(false),false);assertEquals(204,result.first);assertEquals(0,result.second.size)}finally{call.cancel()}
     }}
+  }
+  @Test fun publicHasNoBearerAndFullCallDeadlineCancelsDrippingBody(){
+    Fixture().use { server ->
+      val publicCall=HttpExchange.createCall(server.origin+"/public","POST",null,"{\"user\":\"тест\",\"password\":\"fixture-only\"}",false)
+      try{assertEquals(200,HttpExchange.execute(publicCall,AtomicBoolean(false),false).first)}finally{publicCall.cancel()}
+      val stalled=HttpExchange.createCall(server.origin+"/stall","GET","fixture-scoped",null,false,100)
+      val start=System.nanoTime()
+      try{assertThrows(IOException::class.java){HttpExchange.execute(stalled,AtomicBoolean(false),false)}}finally{stalled.cancel()}
+      assertTrue("Deadline must bound the whole streaming call",(System.nanoTime()-start)/1000000<2000)
+    }
   }
   @Test fun streamedOversizeAndAlreadyCancelledRequestsAreRejected(){
     Fixture().use{server->assertThrows(IllegalStateException::class.java){call(server.origin+"/large",false)}}
-    val cancelled=URL("http://127.0.0.1:1/not-called").openConnection() as HttpURLConnection
-    try{assertThrows(IllegalStateException::class.java){HttpExchange.execute(cancelled,"GET","fixture",null,AtomicBoolean(true),true)}}finally{cancelled.disconnect()}
+    val cancelled=HttpExchange.createCall("http://127.0.0.1:1/not-called","GET","fixture",null,true)
+    try{assertThrows(IllegalStateException::class.java){HttpExchange.execute(cancelled,AtomicBoolean(true),true)}}finally{cancelled.cancel()}
   }
 }

@@ -1,5 +1,5 @@
 {
-  "androidVersionCode": 9,
+  "androidVersionCode": 10,
   "versionName": "0.1.0",
   "webHostVersion": 5,
   "sharedAbi": 1,
@@ -9,7 +9,8 @@
     ],
     "http": [
       1,
-      2
+      2,
+      3
     ],
     "releaseCrypto": [
       1
@@ -27,6 +28,9 @@
       1
     ],
     "nativeScriptFiles": [
+      1
+    ],
+    "operationIds": [
       1
     ]
   }

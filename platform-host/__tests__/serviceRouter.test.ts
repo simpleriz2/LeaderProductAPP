@@ -52,7 +52,7 @@ test('explicit QR mutations preserve method/body and reject unsupported operatio
  await router.execute('company','/qr/owned',{method:'DELETE'});
  expect(ports.send).toHaveBeenLastCalledWith(expect.objectContaining({method:'DELETE',body:undefined}));
  ports.assignment=jest.fn(ports.assignment);ports.restrictedToken=jest.fn(ports.restrictedToken);(ports.send as jest.Mock).mockClear();
- for(const operation of [{method:'PATCH'}, {method:'GET',body:{}}, {method:'PUT',body:()=>{}}, {method:'POST',body:'x'.repeat(2*1024*1024)}]){
+ for(const operation of [{method:'TRACE'}, {method:'GET',body:{}}, {method:'PUT',body:()=>{}}, {method:'POST',body:'x'.repeat(2*1024*1024)}]){
    await expect(router.execute('company','/qr/owned',operation as never)).rejects.toThrow();
  }
  expect(ports.assignment).not.toHaveBeenCalled();expect(ports.restrictedToken).not.toHaveBeenCalled();expect(ports.send).not.toHaveBeenCalled();

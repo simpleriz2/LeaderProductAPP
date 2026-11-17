@@ -219,7 +219,7 @@ export async function createWebHost(profile: LocalWebProfile) {
         runtime: runtime.web.runtime,
         compatibleApis: ['1.0.0'],
         modules: lease.session.modules,
-        capabilities: { http: [1, 2] },
+        capabilities: { http: [1, 2, 3] },
         contracts: {
           moduleHost: ['1.0.0'],
           ...(lease.session.permissions ? { authActions: ['1.0.0'] } : {}),
