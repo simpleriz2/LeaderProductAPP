@@ -125,6 +125,11 @@ export class SessionCoordinator {
     });
   }
   activate(id: string): Promise<void> { return this.serialize(async () => { await this.start(id); this.desired.add(id); }); }
+  /** Another Web tab changed saved authority. Stop local work without clearing its new proof/data. */
+  invalidateExternalSession():Promise<void>{
+    this.authorizationInvalidated=true;this.invalidate();
+    return this.serialize(async()=>{this.desired.clear();await this.stop('external-session-change');});
+  }
   logout(reason: 'logout' | 'revoked' = 'logout'): Promise<void> {
     this.authorizationInvalidated = true;
     this.invalidate();

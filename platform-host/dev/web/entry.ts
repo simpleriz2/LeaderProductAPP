@@ -1,4 +1,4 @@
-import {openWebSessionStore} from '../../adapters/offlineSession.web';
+import {openWebSessionStore,bindWebSessionInvalidation} from '../../adapters/offlineSession.web';
 import {SessionCoordinator} from '../../core/sessionCoordinator';
 import {openVerifiedWebFederation} from '../../adapters/federation.web';
 import React from 'react';
@@ -13,4 +13,4 @@ import {openWebReleaseStorage} from '../../adapters/releaseStorage.web';
 import {createWebTrust} from '../../adapters/trust.web';
 import {stageAndActivate,verifyRelease,artifactFiles} from '../../core/releaseSet';
 import {bootstrapRelease,confirmReleaseHealthy,recoverLastHealthy} from '../../core/releaseBootstrap';
-Object.assign(globalThis,{LP2:{openWebSessionStore,SessionCoordinator,openVerifiedWebFederation,React,createRoot,createGenerationFence,createWebGenerationLock,createIndexedDbDriver,createDatabaseSession,prepareDataGeneration,openWebReleaseStorage,createWebTrust,stageAndActivate,verifyRelease,artifactFiles,bootstrapRelease,confirmReleaseHealthy,recoverLastHealthy}});
+Object.assign(globalThis,{LP2:{openWebSessionStore,bindWebSessionInvalidation,SessionCoordinator,openVerifiedWebFederation,React,createRoot,createGenerationFence,createWebGenerationLock,createIndexedDbDriver,createDatabaseSession,prepareDataGeneration,openWebReleaseStorage,createWebTrust,stageAndActivate,verifyRelease,artifactFiles,bootstrapRelease,confirmReleaseHealthy,recoverLastHealthy}});

@@ -84,3 +84,10 @@ test('invalid central/saved identity cannot mutate permissions or enter module s
   expect(()=>coordinator.confirm({...alice,modules:['qr','qr']})).toThrow('Invalid confirmed');
   saved={...alice,company:'../other-company'};await expect(coordinator.restoreOffline()).rejects.toThrow('Invalid confirmed');expect(events).toEqual([]);
 });
+test('external authority change invalidates local work immediately and preserves the other session proof',async()=>{
+ await coordinator.confirm(alice);await coordinator.activate('qr');const old=coordinator.currentLease();saved=bob;
+ const stopping=coordinator.invalidateExternalSession();expect(()=>old.assertCurrent()).toThrow('Stale');await stopping;
+ expect(saved).toEqual(bob);expect(events).toContain('qr:suspend:external-session-change');expect(events).toContain('qr:dispose');
+ await expect(coordinator.restoreOffline()).rejects.toThrow('Authorization invalidated');expect(saved).toEqual(bob);
+ await coordinator.confirm(bob);expect(coordinator.currentLease().session.user).toBe('bob');
+});
