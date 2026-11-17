@@ -16,7 +16,8 @@
     "test:remote-packages": "node --experimental-strip-types --test dev/release/remotePackages.test.cjs",
     "test:runtime": "node --test dev/runtime/identity.test.cjs",
     "test:pilot-delivery": "node --experimental-strip-types --test dev/release/pilotDelivery.test.cjs",
-    "test:web-storage": "node scripts/testWebStorage.cjs"
+    "test:web-storage": "node scripts/testWebStorage.cjs",
+    "test:database": "node --experimental-strip-types --test dev/database/moduleDatabase.test.cjs"
   },
   "dependencies": {
     "react": "19.3.0",
