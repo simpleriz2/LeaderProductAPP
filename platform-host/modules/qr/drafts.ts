@@ -2,7 +2,6 @@ import {hasSessionAction} from '../../core/confirmedSession.ts';
 import {utf8Size} from '../../core/utf8.ts';
 import type {SessionLease} from '../../core/sessionCoordinator';
 import type {DatabaseSession} from '../../database/moduleDatabase';
-import type {SchemaOwner} from '../../database/migrations';
 
 import {qrTypes,type QrType} from './contracts.ts';
 export {qrTypes,type QrType} from './contracts.ts';
@@ -27,8 +26,8 @@ export function decodeQrDraft(value:unknown):QrDraft{
 }
 const codec={encode:decodeQrDraft,decode:decodeQrDraft};
 /** No legacy QR queue exists to import; never read original application's database/storage. */
-export const qrSchemaOwner:SchemaOwner={module:'qr',base:1,initialize:async()=>{},migrations:[]};
-export function createQrDraftRepository(database:DatabaseSession,lease:SessionLease){
+export {qrSchemaOwner} from './schema.ts';
+export function createQrDraftRepository(database:Pick<DatabaseSession,'scope'|'module'>,lease:SessionLease){
   if(database.scope.company!==lease.session.company||database.scope.user!==lease.session.user)throw Error('Wrong QR data subject');
   const db=database.module('qr'),drafts=db.collection<QrDraft>('drafts',codec);
   const action=(name:string)=>hasSessionAction(lease.session,'qr',name);

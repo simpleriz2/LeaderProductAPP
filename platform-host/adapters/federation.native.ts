@@ -1,3 +1,4 @@
+import {validateRemoteModuleFactory} from '../core/moduleFactory';
 import {NativeModules} from 'react-native';
 import {ScriptManager} from '@callstack/repack/client';
 import {getInstance} from '@module-federation/enhanced/runtime';
@@ -26,6 +27,11 @@ export async function openVerifiedNativeFederation(activation:Activation,context
       if(!activation.release.artifacts.some(a=>a.module===module))throw Error('Module not in verified set');
       await current();const loaded=await instance.loadRemote<{default:ComponentType}>(`${module}/Screen`);await current();
       if(!loaded||typeof loaded.default!=='function')throw Error('Invalid module Screen contract');return loaded.default;
+    },
+    async factory(module:string){
+      const artifact=activation.release.artifacts.find(item=>item.module===module);if(!artifact)throw Error('Module not in verified set');
+      await current();const loaded=await instance.loadRemote<{default:unknown}>(`${module}/Module`);await current();
+      if(!loaded)throw Error('Module factory unavailable');return validateRemoteModuleFactory(loaded.default,artifact);
     },
     dispose(){disposed=true;resolver.dispose();},
   };

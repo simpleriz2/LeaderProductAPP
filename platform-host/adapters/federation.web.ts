@@ -1,3 +1,4 @@
+import {validateRemoteModuleFactory} from '../core/moduleFactory.ts';
 import React from 'react';
 import * as ReactNative from 'react-native';
 import {createInstance} from '@module-federation/enhanced/runtime';
@@ -48,6 +49,12 @@ export async function openVerifiedWebFederation(activation:Activation,context:Re
         await current();
         if(disposed||!loaded||typeof loaded.default!=='function')throw Error('Invalid module Screen contract');
         return loaded.default;
+      },
+      async factory(module:string){
+        if(disposed)throw Error('Federation disposed; reload required');
+        const artifact=activation.release.artifacts.find(item=>item.module===module);if(!artifact)throw Error('Module not in verified set');
+        await current();const loaded=await instance.loadRemote<{default:unknown}>(`lp2_${module}/Module`);await current();
+        if(disposed||!loaded)throw Error('Module factory unavailable');return validateRemoteModuleFactory(loaded.default,artifact);
       },
       /** Stops future loads, releases Blob URLs; executing code must be stopped by lifecycle coordinator. */
       dispose(){disposed=true;for(const url of urls)URL.revokeObjectURL(url);},
