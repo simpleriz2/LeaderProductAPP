@@ -12,7 +12,7 @@ let ports: ReleasePorts;
 beforeEach(() => {
   current = null; staged = new Map();
   ports = {
-    createAttemptId: () => 'attempt-1',
+    checkpoint:()=>{},createAttemptId: () => 'attempt-1',
     trust: {
       verifyEd25519: async (keyId, payload, signature) => keyId === 'test-key' && verify(null, Buffer.from(payload), key.publicKey, Buffer.from(signature, 'base64')),
       sha256: async data => createHash('sha256').update(data).digest('hex'),
@@ -100,4 +100,29 @@ test('supported native and domain contract revisions are explicit sets, not an a
   const unknown={...context,moduleContracts:{qr:['2.0.0'],help:['1.0.0']}};
   await expect(verifyRelease(signed(release),unknown,ports.trust)).rejects.toThrow('module contract');
   await expect(verifyRelease(signed({...release,format:1} as unknown as ReleaseSet),context,ports.trust)).rejects.toThrow('format');
+});
+
+test.each(['signature','cache','download','digest','stage','migration','commit'])('invalidated session at %s never opens working screens or continues activation',async phase=>{
+  let revoked=false;ports.checkpoint=()=>{if(revoked)throw Error('Stale session lease');};
+  const previous=current;
+  const action=()=>{revoked=true;};
+  if(phase==='signature'){const original=ports.trust.verifyEd25519;ports.trust.verifyEd25519=async(...args)=>{const result=await original(...args);action();return result;};}
+  if(phase==='cache')ports.storage.cachedFile=async()=>{action();return bytes;};
+  if(phase==='download')ports.download=async()=>{action();return bytes;};
+  if(phase==='digest'){const original=ports.trust.sha256;ports.trust.sha256=async data=>{const hash=await original(data);action();return hash;};}
+  if(phase==='stage'){const original=ports.storage.stage;ports.storage.stage=async(...args)=>{await original(...args);action();};}
+  if(phase==='migration')ports.prepareData=async()=>{action();return 'generation-1';};
+  if(phase==='commit'){const original=ports.storage.commit;ports.storage.commit=async(...args)=>{await original(...args);action();};}
+  const ready=jest.fn();await expect(stageAndActivate(signed(release),context,ports).then(ready)).rejects.toThrow('Stale');expect(ready).not.toHaveBeenCalled();
+  if(phase!=='commit')expect(current).toBe(previous);
+  // An already committed old-account pointer may remain valid; revoked work is never returned/activated in UI.
+  else expect(current?.company).toBe('alpha');
+});
+test('release progress reaches ready only after commit; observers cannot corrupt activation',async()=>{
+  const events:string[]=[];ports.onProgress=event=>{events.push(`${event.phase}:${event.completed}/${event.total}`);if(event.phase==='download')throw Error('Broken UI observer');};
+  await stageAndActivate(signed(release),context,ports);expect(events[0]).toBe('verify-manifest:0/0');expect(events.at(-1)).toBe('ready:2/2');expect(current?.release.id).toBe('alpha-1');
+});
+test('a logout triggered by activation progress is checked before committing the pointer',async()=>{
+  let stale=false;ports.checkpoint=()=>{if(stale)throw Error('Stale lease');};ports.onProgress=p=>{if(p.phase==='activate')stale=true;};
+  await expect(stageAndActivate(signed(release),context,ports)).rejects.toThrow('Stale');expect(current).toBeNull();
 });

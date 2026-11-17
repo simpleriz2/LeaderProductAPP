@@ -68,7 +68,11 @@ export interface ReleaseStorage {
   /** Must atomically commit code + data pointers iff expected still matches. Keep previous LKG. */
   commit(expected: Activation | null, next: Activation, stagedNamespace: string): Promise<void>;
 }
+export type ReleaseProgress = { phase: 'verify-manifest'|'download'|'verify-files'|'migrate'|'activate'|'ready'; completed: number; total: number };
 export interface ReleasePorts {
+  /** Must throw for an invalidated login/logout/revoke/account-switch lease. */
+  checkpoint(): void;
+  onProgress?(progress: ReleaseProgress): void;
   trust: Trust;
   createAttemptId(): string;
   storage: ReleaseStorage;
@@ -78,25 +82,46 @@ export interface ReleasePorts {
   prepareData(release: ReleaseSet, previous: Activation | null): Promise<string>;
 }
 export async function stageAndActivate(signed: SignedRelease, context: ReleaseContext, ports: ReleasePorts): Promise<Activation> {
+  ports.checkpoint();
+  const report = (phase: ReleaseProgress['phase'], completed: number, total: number) => {
+    ports.checkpoint();
+    try { ports.onProgress?.({phase,completed,total}); } catch { /* Observers cannot own activation correctness. */ }
+    ports.checkpoint();
+  };
+  report('verify-manifest',0,0);
   const release = await verifyRelease(signed, context, ports.trust);
+  ports.checkpoint();
   const previous = await ports.storage.current(context.company, context.user);
+  ports.checkpoint();
   requireValue(!previous || (previous.company === context.company && previous.user === context.user), 'Wrong stored namespace');
   const attempt = ports.createAttemptId();
   requireValue(identifier(attempt), 'Invalid attempt id');
   const namespace = `${context.company}/${context.user}/${release.id}/${attempt}`;
   try {
-    for (const file of artifactFiles(release)) {
+    const files = artifactFiles(release); let completed = 0;
+    for (const file of files) {
+      report('verify-files',completed,files.length);
       const cached = await ports.storage.cachedFile(context.company, context.user, file);
+      ports.checkpoint();
       const validCache = cached !== null && cached.length === file.size && await ports.trust.sha256(cached) === file.digest;
+      ports.checkpoint();
+      if(!validCache) report('download',completed,files.length);
       const bytes = validCache ? cached : await ports.download(file.path);
+      ports.checkpoint();
       requireValue(bytes.length === file.size, 'Artifact size mismatch');
       requireValue(await ports.trust.sha256(bytes) === file.digest, 'Artifact digest mismatch');
+      ports.checkpoint();
       await ports.storage.stage(namespace, file, bytes);
+      ports.checkpoint(); completed++;
     }
+    report('migrate',completed,files.length);
     const dataGeneration = await ports.prepareData(release, previous);
+    ports.checkpoint();
     requireValue(identifier(dataGeneration), 'Invalid data generation');
     const next = { company: context.company, user: context.user, release, signed, dataGeneration };
+    report('activate',completed,files.length);
     await ports.storage.commit(previous, next, namespace);
+    report('ready',completed,files.length);
     return next;
   } catch (error) {
     // Cleanup failure must not hide the actual activation failure or erase last-known-good.
@@ -107,10 +132,14 @@ export async function stageAndActivate(signed: SignedRelease, context: ReleaseCo
 
 /** Code-only rollback is allowed only when the target declares the current data schema. */
 export async function rollbackCode(signed: SignedRelease, context: ReleaseContext, ports: ReleasePorts): Promise<Activation> {
+  ports.checkpoint();
   const target = await verifyRelease(signed, context, ports.trust);
+  ports.checkpoint();
   const current = await ports.storage.current(context.company, context.user);
   requireValue(current && current.company === context.company && current.user === context.user, 'No current namespace');
+  ports.checkpoint();
   const confirmed = await verifyRelease(current.signed, context, ports.trust);
+  ports.checkpoint();
   requireValue(JSON.stringify(confirmed) === JSON.stringify(current.release), 'Corrupt current metadata');
   requireValue(target.artifacts.every(a => current.release.artifacts.some(b => b.module === a.module && b.schema === a.schema)), 'Rollback requires compatible current data schema');
   return stageAndActivate(signed, context, { ...ports, prepareData: async (_, actual) => {
