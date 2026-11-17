@@ -1,0 +1,55 @@
+/** Local durability adapter; Node SQLite/filesystem, never imported into Android/Web. */
+const fs = require('node:fs');
+const path = require('node:path');
+const { createHash, randomUUID } = require('node:crypto');
+const { DatabaseSync } = require('node:sqlite');
+const digest = bytes => createHash('sha256').update(bytes).digest('hex');
+function atomicallyWrite(file, bytes) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const temporary = `${file}.${randomUUID()}.pending`;
+  const fd = fs.openSync(temporary, 'w');
+  try { fs.writeFileSync(fd, bytes); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+  fs.renameSync(temporary, file);
+  const dir = fs.openSync(path.dirname(file), 'r'); try { fs.fsyncSync(dir); } finally { fs.closeSync(dir); }
+}
+function safePart(value) { if(typeof value !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(value)) throw Error('Invalid namespace'); return value; }
+function openDiskStore(root, failpoint = () => {}) {
+  fs.mkdirSync(root, { recursive: true });
+  const db = new DatabaseSync(path.join(root, 'bootstrap.sqlite'));
+  db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS activation (company TEXT NOT NULL, user TEXT NOT NULL, current TEXT, lkg TEXT, PRIMARY KEY(company,user));');
+  const blobFile = (company, user, hash) => path.join(root, 'blobs', safePart(company), safePart(user), safePart(hash));
+  const stageDir = ns => { ns.split('/').forEach(safePart); return path.join(root, 'staging', digest(ns)); };
+  const read = (company, user, field = 'current') => { safePart(company); safePart(user); const value = db.prepare(`SELECT ${field} FROM activation WHERE company=? AND user=?`).get(company,user)?.[field]; return value ? JSON.parse(value) : null; };
+  return {
+    current: async (company,user) => read(company,user),
+    lastGood: async (company,user) => read(company,user,'lkg'),
+    stage: async (ns, artifact, bytes) => {
+      if(digest(bytes) !== artifact.digest) throw Error('Stage digest mismatch');
+      atomicallyWrite(path.join(stageDir(ns), safePart(artifact.digest)), bytes);
+    },
+    discard: async ns => { fs.rmSync(stageDir(ns), { recursive: true, force: true }); },
+    commit: async (expected, next, ns) => {
+      const staging = stageDir(ns);
+      // Promote immutable content before committing pointers. Orphans after crash are safe; GC is deferred.
+      for(const artifact of next.release.artifacts) {
+        const bytes = fs.readFileSync(path.join(staging, safePart(artifact.digest)));
+        if(digest(bytes) !== artifact.digest) throw Error('Staged cache tampered');
+        atomicallyWrite(blobFile(next.company, next.user, artifact.digest), bytes);
+      }
+      failpoint('beforeCommit');
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        const existing = read(next.company,next.user);
+        if(JSON.stringify(existing) !== JSON.stringify(expected)) throw Error('Concurrent activation');
+        db.prepare('INSERT INTO activation(company,user,current,lkg) VALUES(?,?,?,?) ON CONFLICT(company,user) DO UPDATE SET lkg=activation.current,current=excluded.current').run(next.company,next.user,JSON.stringify(next),expected ? JSON.stringify(expected) : null);
+        db.exec('COMMIT');
+      } catch(error) { db.exec('ROLLBACK'); throw error; }
+      failpoint('afterCommit');
+      try { fs.rmSync(staging, { recursive: true, force: true }); } catch { /* Committed state is valid; defer staging GC. */ }
+    },
+    readVerifiedBytes: activation => activation.release.artifacts.map(a => { const bytes = fs.readFileSync(blobFile(activation.company, activation.user, a.digest)); if(digest(bytes) !== a.digest) throw Error('Cached artifact tampered'); return bytes; }),
+    blobFile,
+    close: () => db.close(),
+  };
+}
+module.exports = { openDiskStore, atomicallyWrite, digest };

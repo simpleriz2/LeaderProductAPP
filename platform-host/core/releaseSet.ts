@@ -34,7 +34,7 @@ export async function verifyRelease(signed: SignedRelease, context: ReleaseConte
   requireValue(context.modules.length === seen.size && context.modules.every(m => seen.has(m)), 'Incomplete release set');
   return release;
 }
-export type Activation = { company: string; user: string; release: ReleaseSet; dataGeneration: string };
+export type Activation = { company: string; user: string; release: ReleaseSet; signed: SignedRelease; dataGeneration: string };
 export interface ReleaseStorage {
   current(company: string, user: string): Promise<Activation | null>;
   stage(namespace: string, artifact: Artifact, bytes: Uint8Array): Promise<void>;
@@ -65,7 +65,7 @@ export async function stageAndActivate(signed: SignedRelease, context: ReleaseCo
     }
     const dataGeneration = await ports.prepareData(release, previous);
     requireValue(identifier(dataGeneration), 'Invalid data generation');
-    const next = { company: context.company, user: context.user, release, dataGeneration };
+    const next = { company: context.company, user: context.user, release, signed, dataGeneration };
     await ports.storage.commit(previous, next, namespace);
     return next;
   } catch (error) {
@@ -73,4 +73,18 @@ export async function stageAndActivate(signed: SignedRelease, context: ReleaseCo
     await ports.storage.discard(namespace).catch(() => undefined);
     throw error;
   }
+}
+
+/** Code-only rollback is allowed only when the target declares the current data schema. */
+export async function rollbackCode(signed: SignedRelease, context: ReleaseContext, ports: ReleasePorts): Promise<Activation> {
+  const target = await verifyRelease(signed, context, ports.trust);
+  const current = await ports.storage.current(context.company, context.user);
+  requireValue(current && current.company === context.company && current.user === context.user, 'No current namespace');
+  const confirmed = await verifyRelease(current.signed, context, ports.trust);
+  requireValue(JSON.stringify(confirmed) === JSON.stringify(current.release), 'Corrupt current metadata');
+  requireValue(target.artifacts.every(a => current.release.artifacts.some(b => b.module === a.module && b.schema === a.schema)), 'Rollback requires compatible current data schema');
+  return stageAndActivate(signed, context, { ...ports, prepareData: async (_, actual) => {
+    requireValue(actual?.dataGeneration === current.dataGeneration && actual?.release.id === current.release.id, 'Concurrent rollback');
+    return current.dataGeneration;
+  } });
 }
