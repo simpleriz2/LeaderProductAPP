@@ -1,12 +1,23 @@
 {
-  "androidVersionCode": 1,
+  "androidVersionCode": 2,
   "versionName": "0.1.0",
   "webHostVersion": 1,
   "sharedAbi": 1,
   "capabilities": {
-    "secureSession": [1],
-    "http": [1],
-    "releaseCrypto": [1],
-    "hostInfo": [1]
+    "secureSession": [
+      1
+    ],
+    "http": [
+      1
+    ],
+    "releaseCrypto": [
+      1
+    ],
+    "hostInfo": [
+      1
+    ],
+    "releaseStorage": [
+      1
+    ]
   }
 }
