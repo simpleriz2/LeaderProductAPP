@@ -39,7 +39,7 @@
     }
   },
   "web": {
-    "version": 4,
+    "version": 5,
     "runtime": "lp2-web-201b5d2d7e8dd718645fd0bf",
     "libraries": {
       "react": "19.3.0",

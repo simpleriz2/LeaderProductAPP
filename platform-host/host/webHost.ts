@@ -1,3 +1,14 @@
+import {
+  createOwnedModuleData,
+  type RemoteModuleFactory,
+  type RemoteModuleInstance,
+  type ModuleHostPorts,
+} from '../core/moduleFactory';
+import {
+  createDatabaseSession,
+  type DatabaseSession,
+} from '../database/moduleDatabase';
+import { qrSchemaOwner } from '../modules/qr/schema';
 import type { ComponentType } from 'react';
 import type {
   Activation,
@@ -30,7 +41,7 @@ import {
 import { openWebReleaseStorage } from '../adapters/releaseStorage.web';
 import { openVerifiedWebFederation } from '../adapters/federation.web';
 import { createWebTrust } from '../adapters/trust.web';
-import {createWebHttpTransport} from '../adapters/http.web';
+import { createWebHttpTransport } from '../adapters/http.web';
 import { createWebArtifactTransport } from '../adapters/artifacts.web';
 import { withWebRequestDeadline } from '../adapters/requestDeadline.web';
 import { readResponseBytes } from '../adapters/httpBytes.web';
@@ -80,8 +91,11 @@ export async function createWebHost(profile: LocalWebProfile) {
     fence = createGenerationFence(createWebGenerationLock(), cache.current);
   const listeners = new Set<() => void>(),
     screens = new Map<string, ComponentType>(),
+    factories = new Map<string, RemoteModuleFactory>(),
+    instances = new Map<string, RemoteModuleInstance>(),
+    runtimePorts = new Map<string, () => ModuleHostPorts>(),
     mounted = new Set<string>(),
-    activeProbes = new Set<string>();
+    activeModules = new Set<string>();
   let state: WebHostState = {
       phase: 'login',
       message: 'Войдите или откройте сохранённую сессию',
@@ -97,6 +111,9 @@ export async function createWebHost(profile: LocalWebProfile) {
       context: ReleaseContext;
       ports: BootstrapPorts;
     } | null = null;
+  let subjectDatabase: DatabaseSession | null = null,
+    selectionQueue: Promise<void> = Promise.resolve(),
+    authorizationChecking = false;
   let transition = 0,
     authController = new AbortController(),
     disposed = false,
@@ -157,25 +174,43 @@ export async function createWebHost(profile: LocalWebProfile) {
   }
   const modules = ['qr', 'help'].map(id => ({
     id,
-    requiresOnline: false,
+    get requiresOnline() {
+      return factories.get(id)?.requiresOnline ?? false;
+    },
     async init(lease: SessionLease) {
       lease.assertCurrent();
-      if (!screens.has(id)) throw Error('Module preflight unavailable');
+      const factory = factories.get(id);
+      if (factory) {
+        const provider = runtimePorts.get(id);
+        if (!provider) throw Error('Module ports unavailable');
+        const instance = factory.create(provider());
+        instances.set(id, instance);
+        await instance.init(lease);
+        lease.assertCurrent();
+        screens.set(id, instance.Screen);
+      } else if (!screens.has(id)) throw Error('Module preflight unavailable');
     },
     async activate() {
-      activeProbes.add(id);
+      await instances.get(id)?.activate();
+      activeModules.add(id);
     },
-    async suspend() {
-      activeProbes.delete(id);
+    async suspend(reason: string) {
+      activeModules.delete(id);
+      await instances.get(id)?.suspend(reason);
       if (state.selected === id)
         emit({ ...state, Screen: undefined, selected: undefined });
     },
     async dispose() {
-      activeProbes.delete(id);
+      activeModules.delete(id);
+      await instances.get(id)?.dispose();
+      instances.delete(id);
+      if (factories.has(id)) screens.delete(id);
     },
   }));
   const coordinator = new SessionCoordinator(sessionStore, modules, {
     async prepare(lease) {
+      await subjectDatabase?.dispose();
+      subjectDatabase = null;
       const context: ReleaseContext = {
         platform: 'web',
         company: lease.session.company,
@@ -184,12 +219,16 @@ export async function createWebHost(profile: LocalWebProfile) {
         runtime: runtime.web.runtime,
         compatibleApis: ['1.0.0'],
         modules: lease.session.modules,
-        capabilities: {http:[1,2]},
-        contracts: lease.session.permissions ? { authActions: ['1.0.0'] } : {},
-        moduleContracts: { qr: ['1.0.0'], help: ['1.0.0'] },
+        capabilities: { http: [1, 2] },
+        contracts: {
+          moduleHost: ['1.0.0'],
+          ...(lease.session.permissions ? { authActions: ['1.0.0'] } : {}),
+        },
+        moduleContracts: { qr: ['1.0.0', '2.0.0'], help: ['1.0.0'] },
       };
       const data = bindAuthorizedGeneration(authority, lease, fence);
-      const artifactTransport = createWebArtifactTransport(), companyTransport=createWebHttpTransport();
+      const artifactTransport = createWebArtifactTransport(),
+        companyTransport = createWebHttpTransport();
       const router = new ServiceRouter(
         lease,
         {
@@ -209,28 +248,44 @@ export async function createWebHost(profile: LocalWebProfile) {
                   : discovery.companyApi,
             };
           },
-          restrictedToken: async (_kind, _company, audience, release, signal) => {
+          restrictedToken: async (
+            _kind,
+            _company,
+            audience,
+            release,
+            signal,
+          ) => {
             const token = (await central(
               '/tokens',
-              { audience, ...(release?{activeReleaseId:release.id}:{}) },
-              signal??lease.signal,
+              { audience, ...(release ? { activeReleaseId: release.id } : {}) },
+              signal ?? lease.signal,
             )) as {
               token: string;
               audience: string;
               company: string;
               user: string;
               expiresAt: number;
-              releaseId?:string;
-              api?:string;
+              releaseId?: string;
+              api?: string;
             };
             return { ...token, value: token.token };
           },
           send: async request => {
-            if(!discovery)throw Error('Service unavailable');
-            const artifact=request.url.startsWith(discovery.artifactApi.replace(/\/+$/,'')+'/');
-            if(!artifact&&!request.url.startsWith(discovery.companyApi.replace(/\/+$/,'')+'/'))throw Error('Service unavailable');
-            const response = await (artifact?artifactTransport:companyTransport)(request);
-            if ((artifact&&response.status !== 200)||response.status===401||response.status===403) {
+            if (!discovery) throw Error('Service unavailable');
+            const artifact = request.url.startsWith(
+              discovery.artifactApi.replace(/\/+$/, '') + '/',
+            );
+            if (
+              !artifact &&
+              !request.url.startsWith(
+                discovery.companyApi.replace(/\/+$/, '') + '/',
+              )
+            )
+              throw Error('Service unavailable');
+            const response = await (artifact
+              ? artifactTransport
+              : companyTransport)(request);
+            if (artifact && response.status !== 200) {
               // A missing/denied artifact may be a mid-update entitlement change. Confirm at pinned Central.
               const fresh = (await central(
                 '/discovery',
@@ -260,6 +315,11 @@ export async function createWebHost(profile: LocalWebProfile) {
               )
                 throw new CentralDenied();
             }
+            if (
+              !artifact &&
+              (response.status === 401 || response.status === 403)
+            )
+              requestAuthorizationCheck(lease);
             return response;
           },
         },
@@ -277,8 +337,13 @@ export async function createWebHost(profile: LocalWebProfile) {
           return discovery.release;
         },
         prepareData: (release, previous) =>
-          prepareDataGeneration(driver, lease, release, previous, [], () =>
-            crypto.randomUUID(),
+          prepareDataGeneration(
+            driver,
+            lease,
+            release,
+            previous,
+            [qrSchemaOwner],
+            () => crypto.randomUUID(),
           ),
         verifyData: active =>
           authority.run(lease, () =>
@@ -313,9 +378,41 @@ export async function createWebHost(profile: LocalWebProfile) {
         bindReleaseSession(lease, context, { ...ports, onProgress: undefined }),
         ports.verifyData,
       );
-      // Probe contract has no import-time workers. Business factory lifecycle/health contracts remain a separate migration.
-      for (const id of lease.session.modules) {
-        screens.set(id, await loader.screen(id));
+      subjectDatabase = createDatabaseSession(
+        driver,
+        lease,
+        activation.dataGeneration,
+        schemasForRelease(activation.release),
+        data,
+      );
+      screens.clear();
+      factories.clear();
+      runtimePorts.clear();
+      for (const artifact of activation.release.artifacts) {
+        const id = artifact.module;
+        if (artifact.contract === '2.0.0') {
+          factories.set(id, await loader.factory(id));
+          lease.assertCurrent();
+          const moduleData = createOwnedModuleData(subjectDatabase, id),
+            binding = Object.freeze({
+              company: activation.company,
+              id: activation.release.id,
+              api: activation.release.api,
+            });
+          runtimePorts.set(id, () =>
+            Object.freeze({
+              lease,
+              data: moduleData,
+              company: (signal: AbortSignal) =>
+                router.forCompanyRelease(binding, signal),
+              createOperationId: () => {
+                lease.assertCurrent();
+                return crypto.randomUUID();
+              },
+              requestAuthorizationCheck: () => requestAuthorizationCheck(lease),
+            }),
+          );
+        } else screens.set(id, await loader.screen(id));
         lease.assertCurrent();
       }
       emit({
@@ -376,6 +473,13 @@ export async function createWebHost(profile: LocalWebProfile) {
     )
       throw Error('Discovery identity mismatch');
     discovery = next;
+    emit({
+      ...state,
+      phase: 'preparing',
+      Screen: undefined,
+      selected: undefined,
+      message: 'Подготавливаем рабочий комплект',
+    });
     await coordinator.confirm(session);
   }
   async function guarded(work: () => Promise<void>, revision = transition) {
@@ -421,6 +525,21 @@ export async function createWebHost(profile: LocalWebProfile) {
       });
     }
   }
+  function requestAuthorizationCheck(lease: SessionLease) {
+    if (authorizationChecking || disposed || !universal) return;
+    authorizationChecking = true;
+    const revision = transition;
+    queueMicrotask(
+      () =>
+        void guarded(async () => {
+          lease.assertCurrent();
+          const ticket = await sessionStore.beginOnlineConfirmation();
+          await confirmOnline(ticket, authController.signal, revision);
+        }, revision).finally(() => {
+          authorizationChecking = false;
+        }),
+    );
+  }
   return {
     getSnapshot: () => state,
     subscribe(listener: () => void) {
@@ -446,7 +565,7 @@ export async function createWebHost(profile: LocalWebProfile) {
         const ticket = await sessionStore.beginOnlineConfirmation();
         const result = (await central(
           '/login',
-          { user, password,platform:'web' },
+          { user, password, platform: 'web' },
           signal,
         )) as { token: string };
         if (revision !== transition || disposed)
@@ -489,16 +608,26 @@ export async function createWebHost(profile: LocalWebProfile) {
     },
     select: async (id: string) =>
       guarded(async () => {
-        await coordinator.activate(id);
-        coordinator.currentLease().assertCurrent();
-        if (!activeProbes.has(id)) throw Error('Probe not active');
-        emit({
-          ...state,
-          phase: 'ready',
-          selected: id,
-          Screen: screens.get(id),
-          message: 'Рабочий комплект',
+        const lease = coordinator.currentLease();
+        const work = selectionQueue.then(async () => {
+          lease.assertCurrent();
+          const previous = state.selected;
+          if (previous && previous !== id)
+            await coordinator.deactivate(previous);
+          lease.assertCurrent();
+          await coordinator.activate(id);
+          lease.assertCurrent();
+          if (!activeModules.has(id)) throw Error('Module requires connection');
+          emit({
+            ...state,
+            phase: 'ready',
+            selected: id,
+            Screen: screens.get(id),
+            message: 'Рабочий комплект',
+          });
         });
+        selectionQueue = work.catch(() => undefined);
+        await work;
       }),
     moduleFailure: async () => {
       const revision = transition;
@@ -613,6 +742,8 @@ export async function createWebHost(profile: LocalWebProfile) {
       try {
         await coordinator.invalidateExternalSession();
       } finally {
+        await subjectDatabase?.dispose();
+        subjectDatabase = null;
         if (activation)
           await driver.close({
             company: activation.company,
