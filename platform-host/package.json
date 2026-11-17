@@ -21,7 +21,8 @@
     "bundle:android:loader": "react-native bundle --platform android --dev false --entry-file dev/native/loader-entry.ts --bundle-output build/native-loader/index.android.bundle --assets-dest build/native-loader",
     "test:pilot-session": "node --experimental-strip-types --test dev/session/pilotProof.test.cjs",
     "test:web-host": "node scripts/testWebHost.cjs",
-    "dev:pilot-web": "node dev/web-host/start.cjs"
+    "dev:pilot-web": "node dev/web-host/start.cjs",
+    "test:platform-variants": "node --experimental-strip-types --test dev/release/platformVariants.test.cjs"
   },
   "dependencies": {
     "react": "19.3.0",

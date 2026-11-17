@@ -53,11 +53,14 @@ jobs:
         with:
           repository: simpleriz2/LeaderProductAPI
           # Exact compatible fork protocol; never follow upstream/main or floating latest.
-          ref: c5778935e6b7bb88e5e1b7cd5bae7ba95a687ffb
+          ref: 0c49c7f55cb5b66eba25425605b8ee53855ce49c
           path: partner-api
           sparse-checkout: dev/platform-pilot
           persist-credentials: false
       - run: npm run test:pilot-session
+        env:
+          LP2_API_PILOT_ROOT: ${{ github.workspace }}/partner-api
+      - run: npm run test:platform-variants
         env:
           LP2_API_PILOT_ROOT: ${{ github.workspace }}/partner-api
       - run: npm run test:pilot-delivery
@@ -120,7 +123,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: simpleriz2/LeaderProductAPI
-          ref: c5778935e6b7bb88e5e1b7cd5bae7ba95a687ffb
+          ref: 0c49c7f55cb5b66eba25425605b8ee53855ce49c
           path: partner-api
           sparse-checkout: dev/platform-pilot
           persist-credentials: false

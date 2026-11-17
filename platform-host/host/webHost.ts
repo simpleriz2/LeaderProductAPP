@@ -440,7 +440,7 @@ export async function createWebHost(profile: LocalWebProfile) {
         const ticket = await sessionStore.beginOnlineConfirmation();
         const result = (await central(
           '/login',
-          { user, password },
+          { user, password,platform:'web' },
           signal,
         )) as { token: string };
         if (revision !== transition || disposed)
