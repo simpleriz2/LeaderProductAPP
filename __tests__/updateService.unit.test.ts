@@ -1,3 +1,5 @@
+// Preserved legacy recovery behavior; fork runtime policy is tested separately.
+jest.mock('@/src/shared/forkPolicy', () => ({ LEGACY_UPDATES_ENABLED: true }));
 const mockStorage = new Map<string, string>();
 const mockAxiosGet = jest.fn();
 

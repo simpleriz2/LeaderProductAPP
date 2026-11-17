@@ -20,8 +20,8 @@ const nativeVersion = JSON.parse(
 ) as NativeVersionConfig;
 const iosBuildNumber = nativeVersion.iosBuildNumber || String(nativeVersion.versionCode);
 const developmentClient = process.env.LEADER_DEV_CLIENT === '1';
-const androidPackage = developmentClient ? 'com.leaderproduct.app.dev' : 'com.leaderproduct.app';
-const localGoogleServicesFile = `./firebase/google-services.${developmentClient ? 'dev' : 'prod'}.json`;
+const androidPackage = 'com.leaderproduct.app.fork';
+const localGoogleServicesFile = './firebase/google-services.fork.json';
 const googleServicesCandidate = process.env.GOOGLE_SERVICES_JSON || localGoogleServicesFile;
 const googleServicesPath = path.resolve(__dirname, googleServicesCandidate);
 if (process.env.GOOGLE_SERVICES_JSON && !fs.existsSync(googleServicesPath)) {
@@ -38,43 +38,22 @@ if (googleServicesFile) {
 const sentryRuntimeEnabled = String(process.env.EXPO_PUBLIC_SENTRY_ENABLED || "").trim().toLowerCase() === "true";
 const sentryUploadConfigured = !!(process.env.SENTRY_ORG && process.env.SENTRY_PROJECT && process.env.SENTRY_AUTH_TOKEN);
 const enableSentryPlugin = sentryRuntimeEnabled || sentryUploadConfigured;
-const updateChannel = process.env.EXPO_PUBLIC_UPDATE_CHANNEL || "prod";
-const apiBaseUrl =
-  process.env.EXPO_PUBLIC_API_URL_DEV ||
-  (updateChannel === "prod" ? "https://sibvod.ru" : "");
-const otaUpdateUrl =
-  process.env.EXPO_PUBLIC_OTA_UPDATE_URL ||
-  (apiBaseUrl ? `${apiBaseUrl.replace(/\/+$/, "")}/ota/update` : undefined);
-
 export default ({ config }: ConfigContext): ExpoConfig => ({
-  name: developmentClient ? "Лидер Продукт DEV" : "Лидер Продукт",
-  slug: "leader-product",
-  owner: "extectick",
+  name: "Leader Product 2.0 Fork",
+  slug: "leader-product-2-fork",
   version: nativeVersion.versionName,
   orientation: "portrait",
   userInterfaceStyle: "automatic",
-  scheme: developmentClient ? "leaderproduct-dev" : "leaderproduct",
+  scheme: "leaderproduct-fork",
   icon: "./assets/images/icon.png",
-  runtimeVersion: {
-    policy: "appVersion",
-  },
-  updates: {
-    enabled: !developmentClient && Boolean(otaUpdateUrl),
-    url: otaUpdateUrl,
-    checkAutomatically: "ON_LOAD",
-    // Maximum network wait, not a minimum splash duration. Slow downloads
-    // continue in the background and are exposed by the in-app update banner.
-    fallbackToCacheTimeout: 8000,
-    requestHeaders: {
-      "expo-channel-name": updateChannel,
-    },
-  },
+  runtimeVersion: `fork-${nativeVersion.versionName}`,
+  updates: { enabled: false, checkAutomatically: "NEVER", fallbackToCacheTimeout: 0 },
   web: {
     output: "single",
     favicon: "./assets/images/favicon.png",
   },
 
-  ios: { bundleIdentifier: developmentClient ? "com.leaderproduct.app.dev" : "com.leaderproduct.app", buildNumber: iosBuildNumber },
+  ios: { bundleIdentifier: "com.leaderproduct.app.fork", buildNumber: iosBuildNumber },
   android: {
     package: androidPackage,
     ...(googleServicesFile ? { googleServicesFile } : {}),
@@ -182,11 +161,5 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // }],
   ],
 
-  extra: {
-    ...(config.extra || {}),
-    eas: {
-      projectId: "7c6d0fa1-6e18-4bf2-a6f4-b877e0b662e2",
-      ...(config.extra as any)?.eas,
-    },
-  },
+  extra: { forkIdentity: true },
 });

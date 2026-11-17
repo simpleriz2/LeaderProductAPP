@@ -1,3 +1,4 @@
+import { LEGACY_UPDATES_ENABLED } from '@/src/shared/forkPolicy';
 import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import * as Updates from 'expo-updates';
@@ -14,7 +15,7 @@ type StartupOtaState = { ready: boolean; phase: StartupOtaPhase };
  */
 export function useStartupOtaUpdate(start: boolean): StartupOtaState {
   const updatesState = Updates.useUpdates();
-  const enabled = Platform.OS !== 'web' && !__DEV__ && Updates.isEnabled;
+  const enabled = LEGACY_UPDATES_ENABLED && Platform.OS !== 'web' && !__DEV__ && Updates.isEnabled;
   const [state, setState] = useState<StartupOtaState>({
     ready: !enabled, phase: enabled ? 'waiting' : 'disabled',
   });

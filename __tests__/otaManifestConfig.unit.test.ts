@@ -81,11 +81,11 @@ test('metadata CLI includes config from the real project without uploading or pu
     const release = JSON.parse(fs.readFileSync(output, 'utf8'));
     expect(release.metadata.expoConfigSchemaVersion).toBe(1);
     expect(release.metadata.expoClient).toMatchObject({
-      scheme: 'leaderproduct', runtimeVersion: version.versionName, version: version.versionName,
-      android: { package: 'com.leaderproduct.app', versionCode: version.versionCode },
+      scheme: 'leaderproduct-fork', runtimeVersion: version.versionName, version: version.versionName,
+      android: { package: 'com.leaderproduct.app.fork', versionCode: version.versionCode },
     });
     mockManifest = { extra: { expoClient: release.metadata.expoClient } };
-    expect(resolveScheme({})).toBe('leaderproduct');
+    expect(resolveScheme({})).toBe('leaderproduct-fork');
   } finally {
     for (const file of ['bundle.hbc', 'metadata.json', 'release.json']) {
       const target = path.join(dir, file);

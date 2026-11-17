@@ -1,3 +1,5 @@
+// Preserved legacy recovery behavior; fork runtime policy is tested separately.
+jest.mock('@/src/shared/forkPolicy', () => ({ LEGACY_UPDATES_ENABLED: true }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 

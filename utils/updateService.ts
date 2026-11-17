@@ -1,3 +1,4 @@
+import { LEGACY_UPDATES_ENABLED } from '@/src/shared/forkPolicy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
@@ -154,6 +155,7 @@ async function checkForUpdateUncached(params: CheckParams): Promise<UpdateCheckR
 }
 
 export async function checkForUpdate(params: CheckParams): Promise<UpdateCheckResponse> {
+  if (!LEGACY_UPDATES_ENABLED) return { ok: false, message: 'Legacy updates disabled in fork' };
   const cacheKey = JSON.stringify([
     params.platform,
     params.versionCode,
@@ -187,6 +189,7 @@ export async function checkForUpdate(params: CheckParams): Promise<UpdateCheckRe
 }
 
 export async function logUpdateEvent(params: UpdateEventParams) {
+  if (!LEGACY_UPDATES_ENABLED) return;
   if (!API_BASE_URL) return;
   try {
     const token = await AsyncStorage.getItem('accessToken');

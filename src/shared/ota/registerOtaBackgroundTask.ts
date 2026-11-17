@@ -1,3 +1,4 @@
+import { LEGACY_UPDATES_ENABLED } from '@/src/shared/forkPolicy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as TaskManager from 'expo-task-manager';
 import * as Updates from 'expo-updates';
@@ -48,9 +49,9 @@ function isUpdatesDisabled(error: unknown) {
   );
 }
 
-if (Platform.OS !== 'web' && !TaskManager.isTaskDefined(TASK_NAME)) {
+if (LEGACY_UPDATES_ENABLED && Platform.OS !== 'web' && !TaskManager.isTaskDefined(TASK_NAME)) {
   TaskManager.defineTask(TASK_NAME, async () => {
-    if (__DEV__ || !Updates.isEnabled) return 1;
+    if (!LEGACY_UPDATES_ENABLED || __DEV__ || !Updates.isEnabled) return 1;
 
     try {
       const lastRunRaw = await AsyncStorage.getItem(LAST_RUN_KEY);
@@ -89,7 +90,7 @@ if (Platform.OS !== 'web' && !TaskManager.isTaskDefined(TASK_NAME)) {
 }
 
 export async function registerOtaBackgroundPrefetchTask() {
-  if (Platform.OS === 'web' || __DEV__) return;
+  if (!LEGACY_UPDATES_ENABLED || Platform.OS === 'web' || __DEV__) return;
 
   const BackgroundTask = require('expo-background-task') as typeof import('expo-background-task');
   const taskManagerAvailable = await TaskManager.isAvailableAsync();

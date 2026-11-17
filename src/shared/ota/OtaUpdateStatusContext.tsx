@@ -1,3 +1,4 @@
+import { LEGACY_UPDATES_ENABLED } from '@/src/shared/forkPolicy';
 import React from 'react';
 import { Alert, AppState, type AppStateStatus, Platform } from 'react-native';
 import * as Application from 'expo-application';
@@ -171,7 +172,7 @@ export function OtaUpdateStatusProvider({
     };
   }, []);
 
-  const updatesEnabled = Platform.OS !== 'web' && Updates.isEnabled && enabled;
+  const updatesEnabled = LEGACY_UPDATES_ENABLED && Platform.OS !== 'web' && Updates.isEnabled && enabled;
   const versionName =
     Application.nativeApplicationVersion ||
     Constants.nativeAppVersion ||
