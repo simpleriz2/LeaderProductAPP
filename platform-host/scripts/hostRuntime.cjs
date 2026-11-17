@@ -35,8 +35,11 @@ if(require.main===module){const next=generate();const existing=fs.existsSync(out
     if(ref&&ref!=='0000000000000000000000000000000000000000'){
       if(!/^[a-f0-9]{40}$/.test(ref))throw Error('Invalid base commit');
       const prefix=execFileSync('git',['rev-parse','--show-prefix'],{cwd:root,encoding:'utf8'}).trim();
-      let previous=null;try{previous=JSON.parse(execFileSync('git',['show',`${ref}:${prefix}host.runtime.json`],{cwd:root,encoding:'utf8',stdio:['ignore','pipe','ignore']}));}catch{}
-      if(previous)enforceEvolution(previous,next);
+      execFileSync('git',['cat-file','-e',`${ref}^{commit}`],{cwd:root,stdio:'ignore'});
+      const gitRoot=execFileSync('git',['rev-parse','--show-toplevel'],{cwd:root,encoding:'utf8'}).trim();
+      const file=`${prefix}host.runtime.json`;
+      const present=execFileSync('git',['ls-tree','--full-name','--name-only',ref,'--',file],{cwd:gitRoot,encoding:'utf8'}).trim();
+      if(present===file){const previous=JSON.parse(execFileSync('git',['show',`${ref}:${file}`],{cwd:gitRoot,encoding:'utf8',stdio:['ignore','pipe','ignore']}));enforceEvolution(previous,next);}
     }
     console.log('Native/Web runtime identity matches locked dependencies and native source');}
 }

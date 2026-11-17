@@ -13,7 +13,8 @@
     "bundle:android:dev": "react-native bundle --platform android --dev true --entry-file index.js --bundle-output build/android-dev/index.android.bundle --assets-dest build/android-dev",
     "test:http": "node --experimental-strip-types --test dev/http/redirect.test.cjs",
     "test:crypto": "node --experimental-strip-types --test dev/crypto/webTrust.test.cjs",
-    "test:remote-packages": "node --experimental-strip-types --test dev/release/remotePackages.test.cjs"
+    "test:remote-packages": "node --experimental-strip-types --test dev/release/remotePackages.test.cjs",
+    "test:runtime": "node --test dev/runtime/identity.test.cjs"
   },
   "dependencies": {
     "react": "19.3.0",

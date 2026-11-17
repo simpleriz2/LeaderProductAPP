@@ -46,6 +46,7 @@ jobs:
           BASE_SHA: ${{ github.event.before || github.event.pull_request.base.sha }}
       - run: npx tsc --noEmit
       - run: npm test -- --runInBand
+      - run: npm run test:runtime
       - run: npm run test:remote-packages
       - run: npm run test:crypto
       - run: npm run test:http
