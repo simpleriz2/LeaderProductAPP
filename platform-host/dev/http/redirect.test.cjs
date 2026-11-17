@@ -33,3 +33,16 @@ test('binary transport rejects stale sessions and non-GET requests before accept
   await assert.rejects(createWebArtifactTransport()(request));
   await assert.rejects(createWebArtifactTransport()({...request,method:'POST',body:'{}'}),/GET required/);
 });
+test('real fetch deadlines include stalled headers and stalled JSON/binary body streams',async t=>{
+ const source=await server((req,res)=>{if(req.url==='/headers')return;res.writeHead(200,{'content-type':'application/octet-stream'});res.write('partial');});t.after(source.close);
+ const request={url:`${source.url}/headers`,method:'GET',token:'scoped-fixture',redirect:'error',signal:new AbortController().signal};
+ await assert.rejects(createWebHttpTransport(fetch,60)(request),/deadline exceeded/);
+ await assert.rejects(createWebHttpTransport(fetch,60)({...request,url:`${source.url}/body`}),/deadline exceeded/);
+ await assert.rejects(createWebArtifactTransport(fetch,60)({...request,url:`${source.url}/body`}),/deadline exceeded/);
+});
+test('body reader cancellation handles abort even for a stalled custom stream; expired/caller cancellation remain distinct',async()=>{
+ const{readResponseBytes}=require('../../adapters/httpBytes.web.ts');const controller=new AbortController();let cancelled=false;
+ const response=new Response(new ReadableStream({cancel(){cancelled=true;}}));const pending=readResponseBytes(response,controller.signal,100);controller.abort();await assert.rejects(pending,/aborted/);assert.equal(cancelled,true);
+ const fetcher=async()=>new Response(new ReadableStream({}));await assert.rejects(createWebHttpTransport(fetcher,20)({url:'http://127.0.0.1/fixture',method:'GET',token:'scoped',redirect:'error',signal:new AbortController().signal}),/deadline exceeded/);
+ const aborted=new AbortController();aborted.abort();await assert.rejects(createWebHttpTransport(fetcher,20)({url:'http://127.0.0.1/fixture',method:'GET',token:'scoped',redirect:'error',signal:aborted.signal}),/Request aborted/);
+});

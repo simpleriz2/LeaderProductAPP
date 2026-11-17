@@ -1,7 +1,9 @@
 /** Bounded streaming reads shared by Web JSON/API and private artifact transports. */
 export async function readResponseBytes(response: Response, signal: AbortSignal, limit: number): Promise<Uint8Array> {
   const reader = response.body?.getReader(); const chunks: Uint8Array[] = []; let size = 0;
+  const cancel=()=>{void reader?.cancel().catch(()=>undefined);};signal.addEventListener('abort',cancel,{once:true});
   try {
+    if(signal.aborted)throw Error('Request aborted');
     const declared = response.headers.get('content-length');
     if (declared !== null && (!/^\d+$/.test(declared) || Number(declared) > limit)) throw Error('Response too large');
     if (reader) for (;;) {
@@ -14,5 +16,5 @@ export async function readResponseBytes(response: Response, signal: AbortSignal,
     for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
     return bytes;
   } catch (error) { await reader?.cancel().catch(() => undefined); throw error; }
-  finally { reader?.releaseLock(); }
+  finally { signal.removeEventListener('abort',cancel);reader?.releaseLock(); }
 }
