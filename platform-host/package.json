@@ -10,7 +10,8 @@
     "bundle:android": "react-native bundle --platform android --dev false --entry-file index.js --bundle-output build/android/index.android.bundle --assets-dest build/android",
     "build:web": "rspack build --config rspack.web.cjs",
     "test:recovery": "node --experimental-strip-types --test dev/recovery/diskStore.test.cjs",
-    "bundle:android:dev": "react-native bundle --platform android --dev true --entry-file index.js --bundle-output build/android-dev/index.android.bundle --assets-dest build/android-dev"
+    "bundle:android:dev": "react-native bundle --platform android --dev true --entry-file index.js --bundle-output build/android-dev/index.android.bundle --assets-dest build/android-dev",
+    "test:http": "node --experimental-strip-types --test dev/http/redirect.test.cjs"
   },
   "dependencies": {
     "react": "19.3.0",

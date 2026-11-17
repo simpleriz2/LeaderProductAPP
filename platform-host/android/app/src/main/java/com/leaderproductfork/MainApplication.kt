@@ -1,6 +1,7 @@
 package com.leaderproduct.app.fork
 
 import android.app.Application
+import com.leaderproduct.app.fork.network.LeaderHttpPackage
 import com.leaderproduct.app.fork.storage.LeaderCredentialsPackage
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
@@ -16,6 +17,7 @@ class MainApplication : Application(), ReactApplication {
       packageList =
         PackageList(this).packages.apply {
           add(LeaderCredentialsPackage())
+          add(LeaderHttpPackage())
         },
     )
   }
