@@ -51,3 +51,8 @@ test('queued outdated login cannot activate after a newer logout', async () => {
   await expect(login).rejects.toThrow('Superseded'); await logout;
   expect(saved).toBeNull(); expect(events).toEqual([]);
 });
+test('failed credential invalidation cannot restore old rights in the same coordinator', async () => {
+  const broken = new SessionCoordinator({ loadLastConfirmed: async () => alice, saveConfirmed: async () => undefined, clearSession: async () => { throw Error('Secure storage unavailable'); } }, []);
+  await broken.confirm(alice); await expect(broken.logout('revoked')).rejects.toThrow('Secure storage unavailable');
+  await expect(broken.restoreOffline()).rejects.toThrow('Authorization invalidated');
+});

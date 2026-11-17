@@ -18,6 +18,7 @@ export interface ModuleLifecycle {
 export class SessionCoordinator {
   private session: ConfirmedSession | null = null;
   private online = false;
+  private authorizationInvalidated = false;
   private blocked = false;
   private epoch = 0;
   private controller = new AbortController();
@@ -72,6 +73,7 @@ export class SessionCoordinator {
       if(!sameUser) this.desired.clear();
       await this.store.saveConfirmed(session);
       if(revision !== this.epoch) throw Error('Superseded session transition');
+      this.authorizationInvalidated = false;
       this.session = session; this.online = true; this.controller = new AbortController();
       for(const id of [...this.desired]) if(session.modules.includes(id)) await this.start(id); else this.desired.delete(id);
     });
@@ -82,6 +84,7 @@ export class SessionCoordinator {
     return this.serialize(async () => {
       if(revision !== this.epoch) throw Error('Superseded session transition');
       await this.stop('offline-restore'); this.desired.clear();
+      if(this.authorizationInvalidated) throw Error('Authorization invalidated; login requires Central confirmation');
       const saved = await this.store.loadLastConfirmed();
       if(revision !== this.epoch) throw Error('Superseded session transition');
       if(!saved) throw Error('First login requires Central connection');
@@ -102,6 +105,7 @@ export class SessionCoordinator {
   }
   activate(id: string): Promise<void> { return this.serialize(async () => { await this.start(id); this.desired.add(id); }); }
   logout(reason: 'logout' | 'revoked' = 'logout'): Promise<void> {
+    this.authorizationInvalidated = true;
     this.invalidate();
     return this.serialize(async () => {
       this.desired.clear();

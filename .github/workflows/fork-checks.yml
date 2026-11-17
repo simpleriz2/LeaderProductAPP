@@ -42,5 +42,6 @@ jobs:
       - run: npx tsc --noEmit
       - run: npm test -- --runInBand
       - run: npm run test:recovery
+      - run: npm run bundle:android:dev
       - run: npm run bundle:android
       - run: npm run build:web
