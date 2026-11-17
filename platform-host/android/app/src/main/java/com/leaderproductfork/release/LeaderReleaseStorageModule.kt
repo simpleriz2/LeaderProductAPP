@@ -43,7 +43,16 @@ class LeaderReleaseStorageModule(context: ReactApplicationContext) : ReactContex
     val atomic = AtomicFile(pointer(company,user))
     val bytes = try { atomic.readFully() } catch (_: FileNotFoundException) { return JSONObject() }
     require(bytes.size <= 2 * 1024 * 1024)
-    return JSONObject(bytes.toString(Charsets.UTF_8))
+    val record = JSONObject(bytes.toString(Charsets.UTF_8))
+    require(!record.has("storageFormat") || record.getInt("storageFormat") == 2) { "Unsupported bootstrap storage format" }
+    // Pre-health-gate prototype records retain their active data/code, but their LKG was never confirmed.
+    if(!record.has("storageFormat")) record.remove("lkg")
+    return record
+  }
+  private fun writePointer(file: File, record: JSONObject) {
+    val bytes = record.put("storageFormat",2).toString().toByteArray(Charsets.UTF_8)
+    require(bytes.size <= 2 * 1024 * 1024)
+    writeAtomic(file,bytes)
   }
   private fun value(state: JSONObject, field: String): String? = if(state.has(field)) state.getString(field) else null
   private fun work(promise: Promise, block: () -> Any?) {
@@ -75,10 +84,18 @@ class LeaderReleaseStorageModule(context: ReactApplicationContext) : ReactContex
     }
     files.promote(namespace,company,user,release.getString("id"),hashes)
     val record = JSONObject().put("current",next)
-    if(expected != null) record.put("lkg",expected)
+    value(previous,"lkg")?.let { record.put("lkg",it) }
     // One atomic record commits both code and prepared-data-generation pointers, with prior LKG.
-    writeAtomic(pointer(company,user),record.toString().toByteArray(Charsets.UTF_8))
+    writePointer(pointer(company,user),record)
     try { files.discard(namespace) } catch (_: Exception) { /* Orphan staging is safe after commit. */ }
+    null
+  }
+  @ReactMethod fun confirmHealthy(expected: String, promise: Promise) = work(promise) {
+    require(expected.toByteArray(Charsets.UTF_8).size <= 1024 * 1024)
+    val activation = JSONObject(expected);val company=activation.getString("company");val user=activation.getString("user")
+    val previous=state(company,user)
+    check(value(previous,"current")==expected) { "Concurrent health confirmation" }
+    writePointer(pointer(company,user),JSONObject().put("current",expected).put("lkg",expected))
     null
   }
   override fun invalidate() { executor.shutdownNow(); super.invalidate() }

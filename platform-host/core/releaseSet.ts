@@ -62,10 +62,13 @@ export async function verifyRelease(signed: SignedRelease, context: ReleaseConte
 export type Activation = { company: string; user: string; release: ReleaseSet; signed: SignedRelease; dataGeneration: string };
 export interface ReleaseStorage {
   current(company: string, user: string): Promise<Activation | null>;
+  lastGood(company: string, user: string): Promise<Activation | null>;
+  /** CAS the current activation after host/module startup health has been checked. */
+  confirmHealthy(expected: Activation): Promise<void>;
   cachedFile(company: string, user: string, file: ArtifactFile): Promise<Uint8Array | null>;
   stage(namespace: string, artifact: ArtifactFile, bytes: Uint8Array): Promise<void>;
   discard(namespace: string): Promise<void>;
-  /** Must atomically commit code + data pointers iff expected still matches. Keep previous LKG. */
+  /** Must atomically commit code + data pointers iff expected still matches. Preserve the explicitly confirmed LKG. */
   commit(expected: Activation | null, next: Activation, stagedNamespace: string): Promise<void>;
 }
 export type ReleaseProgress = { phase: 'verify-manifest'|'download'|'verify-files'|'migrate'|'activate'|'ready'; completed: number; total: number };

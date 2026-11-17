@@ -21,6 +21,8 @@ beforeEach(() => {
     prepareData: async () => 'generation-1',
     storage: {
       current: async () => current,
+      lastGood: async () => null,
+      confirmHealthy: async () => {},
       cachedFile: async () => null,
       stage: async (ns, _, data) => { staged.set(ns, [...(staged.get(ns) || []), data]); },
       discard: async ns => { staged.delete(ns); },

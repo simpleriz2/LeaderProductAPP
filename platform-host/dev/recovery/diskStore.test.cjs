@@ -19,7 +19,8 @@ function fixture(t) {
   const ports={storage,trust,checkpoint:()=>{},createAttemptId:randomUUID,download:async key=>Buffer.from(artifacts[key],'base64'),prepareData:(r,p)=>prepareForUser(root,context.user,r,p)};
   return { root,key,artifacts,context,release,signed,trust,storage,ports };
 }
-function seed(f, activation) {
+async function seed(f, activation) {
+  await f.storage.confirmHealthy(activation);
   const db=new DatabaseSync(dataFile(f.root,'alpha','alice',activation.dataGeneration));
   db.prepare('INSERT INTO drafts(module,id,payload) VALUES(?,?,?)').run('qr','draft-1','unsent');
   db.prepare('INSERT INTO outbox(id,payload,receipt) VALUES(?,?,?)').run('order-1','canonical-payload','matching-receipt');
@@ -30,7 +31,7 @@ function preserved(f, activation) {
   try { assert.equal(db.prepare('SELECT payload FROM drafts WHERE id=?').get('draft-1').payload,'unsent');assert.equal(db.prepare('SELECT receipt FROM outbox WHERE id=?').get('order-1').receipt,'matching-receipt');assert.equal(db.prepare('SELECT cursor FROM help_cursor').get().cursor,'cursor-42'); } finally {db.close();}
 }
 test('disk/SQLite activation updates only one remote, migrates a copy and preserves drafts/outbox/cursors', async t=>{
-  const f=fixture(t);const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);seed(f,first);
+  const f=fixture(t);const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);await seed(f,first);
   const r2=f.release(2);r2.artifacts.forEach(a=>a.schema=2);
   const second=await stageAndActivate(f.signed(r2),f.context,f.ports);preserved(f,second);preserved(f,first);
   assert.equal(second.release.artifacts[1].digest,first.release.artifacts[1].digest);
@@ -42,7 +43,7 @@ test('disk/SQLite activation updates only one remote, migrates a copy and preser
   assert.deepEqual(await f.storage.current('alpha','alice'),before);preserved(f,before);
 });
 for(const crashAt of ['beforeCommit','afterCommit']) test(`restart after process crash ${crashAt} restores one complete code/data set`,async t=>{
-  const f=fixture(t);const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);seed(f,first);
+  const f=fixture(t);const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);await seed(f,first);
   const input=path.join(f.root,'fixture.json');const r2=f.release(2);
   fs.writeFileSync(input,JSON.stringify({signed:f.signed(r2),context:f.context,artifacts:f.artifacts,publicKey:f.key.publicKey.export({type:'spki',format:'pem'})}));
   const child=spawnSync(process.execPath,['--experimental-strip-types',path.join(__dirname,'crashWorker.cjs'),f.root,input,crashAt],{encoding:'utf8'});
@@ -60,7 +61,7 @@ test('cached artifact tampering is detected before execution, including offline 
 });
 test('code rollback keeps current data generation; incompatible schema rollback is denied',async t=>{
   const { rollbackCode }=require('../../core/releaseSet.ts');const f=fixture(t);
-  const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);seed(f,first);
+  const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);await seed(f,first);
   const second=await stageAndActivate(f.signed(f.release(2)),f.context,f.ports);
   const db=new DatabaseSync(dataFile(f.root,'alpha','alice',second.dataGeneration));db.prepare('INSERT INTO drafts(module,id,payload) VALUES(?,?,?)').run('qr','new-draft','created-after-update');db.close();
   const rolled=await rollbackCode(first.signed,f.context,f.ports);assert.equal(rolled.release.id,'set-1');assert.equal(rolled.dataGeneration,second.dataGeneration);preserved(f,rolled);
@@ -69,7 +70,7 @@ test('code rollback keeps current data generation; incompatible schema rollback 
   await assert.rejects(rollbackCode(first.signed,f.context,f.ports),/compatible current data schema/);assert.deepEqual(await f.storage.current('alpha','alice'),active);preserved(f,active);
 });
 test('cache is private per company/user and a corrupt cached blob is repaired only from verified bytes',async t=>{
-  const f=fixture(t);const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);seed(f,first);const file=first.release.artifacts[0];
+  const f=fixture(t);const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);await seed(f,first);const file=first.release.artifacts[0];
   assert.equal(await f.storage.cachedFile('beta','bob',file),null);assert.equal(await f.storage.cachedFile('alpha','bob',file),null);
   fs.writeFileSync(f.storage.blobFile('alpha','alice',file.digest),'corrupt-cache');let downloaded=[];const original=f.ports.download;
   const repaired=await stageAndActivate(f.signed({...f.release(1),id:'repair-2'}),f.context,{...f.ports,download:async key=>{downloaded.push(key);return original(key);}});
@@ -84,13 +85,13 @@ function bootstrapPorts(f,signed,events=[]){return {...f.ports,assignedRelease:a
 test('bootstrap requires network on first installation and verifies cached offline set without downloads or migrations',async t=>{
   const f=fixture(t);const signed=f.signed(f.release(1));const events=[];
   await assert.rejects(bootstrapRelease(lease(f),f.context,bootstrapPorts(f,signed,events)),/requires network/);assert.ok(!events.includes('ready'));
-  const online=await bootstrapRelease(lease(f,true),f.context,bootstrapPorts(f,signed));seed(f,online.activation);
+  const online=await bootstrapRelease(lease(f,true),f.context,bootstrapPorts(f,signed));await seed(f,online.activation);
   const ports=bootstrapPorts(f,signed);ports.prepareData=async()=>{throw Error('Unexpected data copy');};ports.download=async()=>{throw Error('Unexpected network');};
   const offline=await bootstrapRelease(lease(f),f.context,ports);assert.equal(offline.mode,'offline');preserved(f,offline.activation);
   const unchanged=await bootstrapRelease(lease(f,true),f.context,ports);assert.equal(unchanged.activation.dataGeneration,online.activation.dataGeneration);
 });
 test('offline bootstrap repairs code with compatible LKG while retaining the NEWEST data generation and edits',async t=>{
-  const f=fixture(t);const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);seed(f,first);
+  const f=fixture(t);const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);await seed(f,first);
   const second=await stageAndActivate(f.signed(f.release(2)),f.context,f.ports);
   const db=new DatabaseSync(dataFile(f.root,'alpha','alice',second.dataGeneration));db.prepare('UPDATE drafts SET payload=? WHERE id=?').run('newest unsent edit','draft-1');db.close();
   fs.writeFileSync(f.storage.blobFile('alpha','alice',second.release.artifacts[0].digest),'corrupt active code');
@@ -99,7 +100,7 @@ test('offline bootstrap repairs code with compatible LKG while retaining the NEW
   const saved=new DatabaseSync(dataFile(f.root,'alpha','alice',result.activation.dataGeneration),{readOnly:true});try{assert.equal(saved.prepare('SELECT payload FROM drafts WHERE id=?').get('draft-1').payload,'newest unsent edit');assert.equal(saved.prepare('SELECT receipt FROM outbox').get().receipt,'matching-receipt');}finally{saved.close();}
 });
 test('offline bootstrap refuses schema-incompatible LKG without restoring an older database',async t=>{
-  const f=fixture(t);const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);seed(f,first);
+  const f=fixture(t);const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);await seed(f,first);
   const newer=f.release(2);newer.artifacts=newer.artifacts.map(a=>({...a,schema:2}));const second=await stageAndActivate(f.signed(newer),f.context,f.ports);
   fs.writeFileSync(f.storage.blobFile('alpha','alice',second.release.artifacts[0].digest),'corrupt code');const events=[];
   await assert.rejects(bootstrapRelease(lease(f),f.context,bootstrapPorts(f,null,events)),/compatible current data schema/);
@@ -109,4 +110,23 @@ test('bootstrap never guesses over untrusted data or returns readiness after ses
   const f=fixture(t);const active=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);const ports=bootstrapPorts(f,null);const events=[];ports.onProgress=e=>events.push(e.phase);
   ports.verifyData=async()=>{throw Error('Corrupt domain database');};await assert.rejects(bootstrapRelease(lease(f),f.context,ports),/Corrupt domain/);assert.ok(!events.includes('ready'));
   const owned=lease(f);ports.verifyData=async()=>{owned.controller.abort();};await assert.rejects(bootstrapRelease(owned,f.context,ports),/Stale/);assert.ok(!events.includes('ready'));assert.equal((await f.storage.current('alpha','alice')).dataGeneration,active.dataGeneration);
+});
+const {confirmReleaseHealthy,recoverLastHealthy}=require('../../core/releaseBootstrap.ts');
+test('only explicit successful startup health replaces LKG; runtime recovery preserves it and requires restart',async t=>{
+  const f=fixture(t);const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);
+  assert.equal(await f.storage.lastGood('alpha','alice'),null);
+  const ports=bootstrapPorts(f,null);await confirmReleaseHealthy(lease(f),f.context,ports,first,async()=>{});await seed(f,first);
+  const second=await stageAndActivate(f.signed(f.release(2)),f.context,f.ports);assert.equal((await f.storage.lastGood('alpha','alice')).release.id,'set-1');
+  await assert.rejects(confirmReleaseHealthy(lease(f),f.context,ports,second,async()=>{throw Error('Module startup failed');}),/startup failed/);
+  assert.equal((await f.storage.lastGood('alpha','alice')).release.id,'set-1');
+  const recovery=await recoverLastHealthy(lease(f),f.context,ports);assert.equal(recovery.restartRequired,true);assert.equal(recovery.activation.release.id,'set-1');assert.equal(recovery.activation.dataGeneration,second.dataGeneration);preserved(f,recovery.activation);
+  assert.equal((await f.storage.lastGood('alpha','alice')).release.id,'set-1');
+  await assert.rejects(f.storage.confirmHealthy(second),/Concurrent health/);
+  const third=await stageAndActivate(f.signed(f.release(3)),f.context,f.ports);await confirmReleaseHealthy(lease(f),f.context,ports,third,async()=>{});
+  assert.equal((await f.storage.lastGood('alpha','alice')).release.id,'set-3');
+});
+test('health check cannot promote a candidate after logout or a concurrent activation',async t=>{
+  const f=fixture(t);const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);const ports=bootstrapPorts(f,null);const owned=lease(f);
+  await assert.rejects(confirmReleaseHealthy(owned,f.context,ports,first,async()=>{owned.controller.abort();}),/Stale/);assert.equal(await f.storage.lastGood('alpha','alice'),null);
+  await assert.rejects(confirmReleaseHealthy(lease(f),f.context,ports,first,async()=>{await stageAndActivate(f.signed(f.release(2)),f.context,f.ports);}),/Concurrent health/);assert.equal(await f.storage.lastGood('alpha','alice'),null);
 });

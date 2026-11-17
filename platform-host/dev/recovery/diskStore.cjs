@@ -21,6 +21,14 @@ function openDiskStore(root, failpoint = () => {}) {
       catch(error) { if(error.code==='ENOENT')return null;throw error; }
     },
     lastGood: async (company,user) => read(company,user,'lkg'),
+    confirmHealthy: async expected => {
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        if(JSON.stringify(read(expected.company,expected.user))!==JSON.stringify(expected))throw Error('Concurrent health confirmation');
+        db.prepare('UPDATE activation SET lkg=? WHERE company=? AND user=?').run(JSON.stringify(expected),expected.company,expected.user);
+        db.exec('COMMIT');
+      }catch(error){db.exec('ROLLBACK');throw error;}
+    },
     stage: async (ns, artifact, bytes) => {
       if(digest(bytes) !== artifact.digest) throw Error('Stage digest mismatch');
       atomicallyWrite(path.join(stageDir(ns), safePart(artifact.digest)), bytes);
@@ -39,7 +47,7 @@ function openDiskStore(root, failpoint = () => {}) {
       try {
         const existing = read(next.company,next.user);
         if(JSON.stringify(existing) !== JSON.stringify(expected)) throw Error('Concurrent activation');
-        db.prepare('INSERT INTO activation(company,user,current,lkg) VALUES(?,?,?,?) ON CONFLICT(company,user) DO UPDATE SET lkg=activation.current,current=excluded.current').run(next.company,next.user,JSON.stringify(next),expected ? JSON.stringify(expected) : null);
+        db.prepare('INSERT INTO activation(company,user,current,lkg) VALUES(?,?,?,?) ON CONFLICT(company,user) DO UPDATE SET current=excluded.current').run(next.company,next.user,JSON.stringify(next),null);
         db.exec('COMMIT');
       } catch(error) { db.exec('ROLLBACK'); throw error; }
       failpoint('afterCommit');

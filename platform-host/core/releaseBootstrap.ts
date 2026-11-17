@@ -5,7 +5,6 @@ import type {SessionLease} from './sessionCoordinator';
 export type BootstrapProgress={phase:'checking'|'updating'|'verifying-installed'|'ready'|'recovery';release?:ReleaseProgress};
 export type BootstrapPorts=Omit<ReleasePorts,'checkpoint'|'onProgress'>&{
   assignedRelease():Promise<SignedRelease>;
-  lastGood(company:string,user:string):Promise<Activation|null>;
   /** Domain storage SDK verifies the committed generation; never substitutes an older data copy. */
   verifyData(activation:Activation):Promise<void>;
   onProgress?(progress:BootstrapProgress):void;
@@ -56,7 +55,7 @@ export async function bootstrapRelease(lease:SessionLease,context:ReleaseContext
         bound.checkpoint();
         // Only code corruption can use LKG. Untrusted metadata/data never triggers a guessed DB rollback.
         await verifyMetadataAndData(installed,context,bound,ports.verifyData);
-        const good=await ports.lastGood(context.company,context.user);bound.checkpoint();
+        const good=await bound.storage.lastGood(context.company,context.user);bound.checkpoint();
         if(!good)throw error;
         activation=await rollbackCode(good.signed,context,bound);mode='recovered';
       }
@@ -68,4 +67,21 @@ export async function bootstrapRelease(lease:SessionLease,context:ReleaseContext
     // Logout/revoke cannot emit recovery or ready state into a different account's UI.
     bound.checkpoint();progress({phase:'recovery'});throw error;
   }
+}
+
+/** Host calls this after its actual selected module/startup health check, never merely after download. */
+export async function confirmReleaseHealthy(lease:SessionLease,context:ReleaseContext,ports:BootstrapPorts,activation:Activation,startupHealth:()=>Promise<void>):Promise<void>{
+  const bound=bindReleaseSession(lease,context,{...ports,onProgress:undefined});
+  await verifyInstalled(activation,context,bound,ports.verifyData);
+  await startupHealth();bound.checkpoint();
+  await bound.storage.confirmHealthy(activation);bound.checkpoint();
+}
+/** Runtime failure recovery changes disk pointers only; restart before executing another federation set. */
+export async function recoverLastHealthy(lease:SessionLease,context:ReleaseContext,ports:BootstrapPorts):Promise<{activation:Activation;restartRequired:true}>{
+  const bound=bindReleaseSession(lease,context,{...ports,onProgress:undefined});
+  const good=await bound.storage.lastGood(context.company,context.user);bound.checkpoint();
+  if(!good)throw Error('No confirmed healthy release');
+  const activation=await rollbackCode(good.signed,context,bound);
+  await verifyInstalled(activation,context,bound,ports.verifyData);
+  return{activation,restartRequired:true};
 }
