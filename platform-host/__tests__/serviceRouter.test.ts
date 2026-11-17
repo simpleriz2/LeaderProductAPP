@@ -25,3 +25,14 @@ test('offline never performs a new service login/request; stale in-flight respon
   ports.send=async()=>{controller.abort();return {status:200,body:{private:'old-user'}};};
   const active=new ServiceRouter(lease,ports,['http://127.0.0.1:3000']);await expect(active.request('company','/records')).rejects.toThrow('Stale');expect(active.status('company')).toBe('unknown');
 });
+
+test('artifact SDK accepts only digest keys and scoped binary success responses',async()=>{
+  const {artifactDownloader}=require('../core/artifactDownload');
+  const router=new ServiceRouter(lease,ports,['http://127.0.0.1:3000']);const download=artifactDownloader(router);
+  for(const key of ['https://attacker.invalid/bundle','artifacts/../secret','artifacts/not-a-digest.bundle']) await expect(download(key)).rejects.toThrow('Invalid artifact key');
+  expect(ports.send).not.toHaveBeenCalled();
+  const key=`artifacts/${'a'.repeat(64)}.bundle`;ports.send=async()=>({status:200,body:new Uint8Array([1,2,3])});
+  await expect(download(key)).resolves.toEqual(new Uint8Array([1,2,3]));
+  ports.send=async()=>({status:200,body:'unverified string'});await expect(download(key)).rejects.toThrow('Artifact unavailable');
+  ports.send=async()=>({status:401,body:null});await expect(download(key)).rejects.toThrow('401');expect(router.status('artifacts')).toBe('denied');
+});

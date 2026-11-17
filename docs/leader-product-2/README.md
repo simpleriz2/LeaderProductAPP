@@ -39,3 +39,6 @@ AST inventory expanded to app.config.ts/index.js: 759 files / 3844 edges / 75 cr
 
 ## Publication quarantine extension
 Retired manual publication commands now fail immediately, including dry-run. New fork release delivery must use the isolated signed company-release pipeline; external publishing remains unauthorized. Existing workflow snapshots and recovery history are retained.
+
+## Protected complete-package delivery
+Actual compiled Re.Pack closures now pass through the local Central/artifact HTTP pilot into signature/hash-verified tenant cache activation. The optional cross-fork acceptance command is `LP2_API_PILOT_ROOT=<local API fork> npm run test:pilot-delivery` inside platform-host; it deliberately has no external/default path. Native/Web durable adapters and trusted remote execution are still unfinished.

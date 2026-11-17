@@ -14,7 +14,8 @@
     "test:http": "node --experimental-strip-types --test dev/http/redirect.test.cjs",
     "test:crypto": "node --experimental-strip-types --test dev/crypto/webTrust.test.cjs",
     "test:remote-packages": "node --experimental-strip-types --test dev/release/remotePackages.test.cjs",
-    "test:runtime": "node --test dev/runtime/identity.test.cjs"
+    "test:runtime": "node --test dev/runtime/identity.test.cjs",
+    "test:pilot-delivery": "node --experimental-strip-types --test dev/release/pilotDelivery.test.cjs"
   },
   "dependencies": {
     "react": "19.3.0",
