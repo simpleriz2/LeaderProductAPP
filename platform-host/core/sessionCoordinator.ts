@@ -125,6 +125,13 @@ export class SessionCoordinator {
     });
   }
   activate(id: string): Promise<void> { return this.serialize(async () => { await this.start(id); this.desired.add(id); }); }
+  /** Explicit resource policy: callers may stop a screen module while background modules stay desired. */
+  deactivate(id:string,reason='navigation'):Promise<void>{return this.serialize(async()=>{
+    if(!this.modules.some(module=>module.id===id))throw Error('Unknown module');
+    this.desired.delete(id);const module=this.running.get(id);if(!module)return;
+    try{await module.suspend(reason);await module.dispose();this.running.delete(id);}
+    catch(error){this.invalidate();await this.stop('deactivation-failed');throw error;}
+  });}
   /** Another Web tab changed saved authority. Stop local work without clearing its new proof/data. */
   invalidateExternalSession():Promise<void>{
     this.authorizationInvalidated=true;this.invalidate();

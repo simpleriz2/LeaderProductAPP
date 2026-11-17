@@ -57,3 +57,16 @@ test('explicit QR mutations preserve method/body and reject unsupported operatio
  }
  expect(ports.assignment).not.toHaveBeenCalled();expect(ports.restrictedToken).not.toHaveBeenCalled();expect(ports.send).not.toHaveBeenCalled();
 });
+
+test('suspending one bound Company client cancels its IO without revoking another module or marking service unavailable',async()=>{
+ const scope=new AbortController();ports.restrictedToken=async()=>({value:'scoped',company:'alpha',user:'alice',audience:'company:alpha',expiresAt:Date.now()+60000,releaseId:'set-1',api:'1.0.0'});
+ ports.send=jest.fn(request=>new Promise((resolve,reject)=>{request.signal.addEventListener('abort',()=>reject(Error('Cancelled transport')),{once:true});scope.abort();}));
+ const router=new ServiceRouter(lease,ports,['http://127.0.0.1:3000'],authority),binding={company:'alpha',id:'set-1',api:'1.0.0'};
+ const suspended=router.forCompanyRelease(binding,scope.signal);await expect(suspended.execute('/qr',{method:'GET'})).rejects.toThrow('aborted');expect(controller.signal.aborted).toBe(false);expect(router.status('company')).toBe('unknown');
+ (ports.send as jest.Mock).mockResolvedValue({status:200,body:{items:[]}});await expect(router.forCompanyRelease(binding).execute('/qr',{method:'GET'})).resolves.toEqual({status:200,body:{items:[]}});
+ const count=(ports.send as jest.Mock).mock.calls.length;await expect(suspended.execute('/qr',{method:'GET'})).rejects.toThrow('aborted');expect(ports.send).toHaveBeenCalledTimes(count);
+});
+test('module suspension during restricted token acquisition prevents Company send even if port ignores cancellation',async()=>{
+ const scope=new AbortController();ports.restrictedToken=async(_kind,_company,_audience,_release,signal)=>{scope.abort();expect(signal!.aborted).toBe(true);return{value:'scoped',company:'alpha',user:'alice',audience:'company:alpha',expiresAt:Date.now()+60000,releaseId:'set-1',api:'1.0.0'};};
+ const router=new ServiceRouter(lease,ports,['http://127.0.0.1:3000'],authority);await expect(router.forCompanyRelease({company:'alpha',id:'set-1',api:'1.0.0'},scope.signal).execute('/qr',{method:'GET'})).rejects.toThrow('aborted');expect(ports.send).not.toHaveBeenCalled();
+});

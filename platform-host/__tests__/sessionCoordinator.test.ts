@@ -91,3 +91,13 @@ test('external authority change invalidates local work immediately and preserves
  await expect(coordinator.restoreOffline()).rejects.toThrow('Authorization invalidated');expect(saved).toEqual(bob);
  await coordinator.confirm(bob);expect(coordinator.currentLease().session.user).toBe('bob');
 });
+test('explicit screen deactivation preserves background resources and saved rights, does not restart hidden screen on refresh',async()=>{
+ await coordinator.confirm(alice);await coordinator.activate('qr');await coordinator.activate('outbox');const session=coordinator.currentLease();events=[];
+ await coordinator.deactivate('qr');expect(events).toEqual(['qr:suspend:navigation','qr:dispose']);session.assertCurrent();expect(saved?.user).toBe('alice');
+ events=[];await coordinator.confirm({...alice,confirmation:'new-rights'});expect(events).toContain('outbox:activate');expect(events).not.toContain('qr:activate');
+ await coordinator.activate('qr');expect(events).toContain('qr:activate');await expect(coordinator.deactivate('unknown')).rejects.toThrow('Unknown module');
+});
+test('failed screen cleanup aborts all leases and blocks another module/account when remaining cleanup fails',async()=>{
+ await coordinator.confirm(alice);await coordinator.activate('qr');await coordinator.activate('outbox');const old=coordinator.currentLease();qr.suspend=async()=>{throw Error('Module cleanup failed');};
+ await expect(coordinator.deactivate('qr')).rejects.toThrow('cleanup incomplete');expect(old.signal.aborted).toBe(true);expect(events).toContain('outbox:dispose');await expect(coordinator.activate('outbox')).rejects.toThrow('No usable session');expect(saved?.user).toBe('alice');
+});

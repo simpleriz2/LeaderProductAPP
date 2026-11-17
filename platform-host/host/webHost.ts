@@ -30,6 +30,7 @@ import {
 import { openWebReleaseStorage } from '../adapters/releaseStorage.web';
 import { openVerifiedWebFederation } from '../adapters/federation.web';
 import { createWebTrust } from '../adapters/trust.web';
+import {createWebHttpTransport} from '../adapters/http.web';
 import { createWebArtifactTransport } from '../adapters/artifacts.web';
 import { withWebRequestDeadline } from '../adapters/requestDeadline.web';
 import { readResponseBytes } from '../adapters/httpBytes.web';
@@ -188,7 +189,7 @@ export async function createWebHost(profile: LocalWebProfile) {
         moduleContracts: { qr: ['1.0.0'], help: ['1.0.0'] },
       };
       const data = bindAuthorizedGeneration(authority, lease, fence);
-      const transport = createWebArtifactTransport();
+      const artifactTransport = createWebArtifactTransport(), companyTransport=createWebHttpTransport();
       const router = new ServiceRouter(
         lease,
         {
@@ -208,23 +209,28 @@ export async function createWebHost(profile: LocalWebProfile) {
                   : discovery.companyApi,
             };
           },
-          restrictedToken: async (_kind, _company, audience) => {
+          restrictedToken: async (_kind, _company, audience, release, signal) => {
             const token = (await central(
               '/tokens',
-              { audience },
-              lease.signal,
+              { audience, ...(release?{activeReleaseId:release.id}:{}) },
+              signal??lease.signal,
             )) as {
               token: string;
               audience: string;
               company: string;
               user: string;
               expiresAt: number;
+              releaseId?:string;
+              api?:string;
             };
             return { ...token, value: token.token };
           },
           send: async request => {
-            const response = await transport(request);
-            if (response.status !== 200) {
+            if(!discovery)throw Error('Service unavailable');
+            const artifact=request.url.startsWith(discovery.artifactApi.replace(/\/+$/,'')+'/');
+            if(!artifact&&!request.url.startsWith(discovery.companyApi.replace(/\/+$/,'')+'/'))throw Error('Service unavailable');
+            const response = await (artifact?artifactTransport:companyTransport)(request);
+            if ((artifact&&response.status !== 200)||response.status===401||response.status===403) {
               // A missing/denied artifact may be a mid-update entitlement change. Confirm at pinned Central.
               const fresh = (await central(
                 '/discovery',

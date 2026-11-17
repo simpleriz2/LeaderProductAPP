@@ -229,3 +229,6 @@ Target TS,104unit,9real SDK SQLite,4QR domain SQLite scenarios and runtime ident
 
 ### 2026-11-17: typed QR Company client evidence
 Target TS107unit (17suites),4actual QR SQLite storage scenarios and signed Central proof integration passed. Actual cross-fork Company+PG test using APP ServiceRouter/createWebHttpTransport/createQrCompanyClient passed (about250ms scenario); verified signed active assignment, token binding, idempotent create, edit/null, stale conflict, pause/delete/restore and pagination. Runtime response/command bounds checked. Native fingerprint/APK9 unchanged; no RN screen/device parity claimed. APP safe CI peer API pin updated to e9a0805 protocol.
+
+### 2026-11-17: module lifecycle IO boundaries
+Target TS111unit (17suites),8actual loopback HTTP transport cases and6Web-host browser E2E passed (10.58s UI). New actual stalled Company body cancellation leaves account lease live, service status unchanged and next independent request working. Delayed scoped token after cancellation cannot send Company request. Coordinator tests preserve background outbox while QR deactivates, do not restart hidden QR on reconfirmation, and abort/drain account on failed cleanup. Android native sources/fingerprint/APK9 unchanged. Actual native factory/worker and business screen lifecycle still pending.

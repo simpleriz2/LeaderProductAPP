@@ -53,3 +53,11 @@ test('real Web JSON transport preserves PUT null updates and bodyless DELETE',as
  assert.deepEqual(await send({...request,method:'DELETE'}),{status:204,body:null});
  assert.deepEqual(observed,[['PUT','{"description":null}','Bearer scoped-fixture'],['DELETE','','Bearer scoped-fixture']]);
 });
+test('module suspension cancels actual stalled Company body without logging out or poisoning service availability',async t=>{
+ const{ServiceRouter}=require('../../core/serviceRouter.ts');let started;const headers=new Promise(resolve=>{started=resolve;});
+ const source=await server((req,res)=>{if(req.url==='/stall'){res.writeHead(200);res.write('{"partial":');started();}else res.end('{"ok":true}');});t.after(source.close);
+ const session=new AbortController(),scope=new AbortController();const lease={session:{company:'alpha',user:'alice',modules:['qr'],confirmation:'fixture'},online:true,signal:session.signal,assertCurrent(){if(session.signal.aborted)throw Error('Stale');}};
+ const router=new ServiceRouter(lease,{assignment:async()=>({kind:'company',company:'alpha',audience:'company:alpha',endpoint:source.url}),restrictedToken:async()=>({value:'scoped',company:'alpha',user:'alice',audience:'company:alpha',expiresAt:Date.now()+60000,releaseId:'set-1',api:'1.0.0'}),send:createWebHttpTransport()},[source.url],{run:async(_lease,work)=>work()});
+ const binding={company:'alpha',id:'set-1',api:'1.0.0'},pending=router.forCompanyRelease(binding,scope.signal).execute('/stall',{method:'GET'});const denied=assert.rejects(pending,/aborted/);await headers;scope.abort();await denied;
+ assert.equal(session.signal.aborted,false);assert.equal(router.status('company'),'unknown');assert.deepEqual(await router.forCompanyRelease(binding).execute('/ok',{method:'GET'}),{status:200,body:{ok:true}});
+});
