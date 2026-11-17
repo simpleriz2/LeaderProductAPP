@@ -14,7 +14,7 @@ test('tampered signed browser rights fail restoration; logout deletes proof whil
  const f=await fixture(t),page=await f.open();const result=await page.evaluate(async()=>{const s=globalThis.s;await s.confirm('alice');
  const driver=s.api.createIndexedDbDriver(),scope={company:'alpha',user:'alice',generation:'data-1'};await driver.fork(null,scope);await driver.write(scope,{module:'orders',expectedSchema:0,targetSchema:1,changes:[{collection:'drafts',id:'pending',expectedRevision:null,payload:'{"text":"unsent"}'}]});
  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('lp2-session-proof-v1',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
- const invalid={...s.data.alice,payload:s.data.alice.payload.replace('alice','carol')};await new Promise((resolve,reject)=>{const tx=db.transaction('session','readwrite',{durability:'strict'});tx.objectStore('session').put(JSON.stringify(invalid),'last');tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error);});db.close();
+ const invalid={...s.data.alice,payload:s.data.alice.payload.replace('alice','carol')};await new Promise((resolve,reject)=>{const tx=db.transaction('session','readwrite',{durability:'strict'});const store=tx.objectStore('session'),query=store.get('last');query.onsuccess=()=>store.put({...query.result,proof:JSON.stringify(invalid)},'last');tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error);});db.close();
  let denied=false;try{await s.store.loadLastConfirmed();}catch(error){denied=error.message.includes('Untrusted');}
  await s.coordinator.logout();const saved=await s.store.loadLastConfirmed(),draft=await driver.read(scope,'orders',1,'drafts','pending');await driver.close(scope);return{denied,saved,draft};
  });assert.equal(result.denied,true);assert.equal(result.saved,null);assert.equal(JSON.parse(result.draft.payload).text,'unsent');
@@ -49,4 +49,10 @@ test('typed DB SDK, release activation and real HTTP router use durable authorit
  await router.request('company','/protected');s.protected={lease,driver,active,drafts,ports,context,router,reads:()=>reads};
  });assert.equal(httpRequests,1);await second.evaluate(()=>globalThis.s.confirm('carol'));
  const result=await first.evaluate(async()=>{const s=globalThis.s,p=s.protected;p.lease.assertCurrent();let denied=0;for(const work of [()=>p.drafts.get('draft'),()=>p.router.request('company','/protected'),()=>s.api.stageAndActivate(s.data.release,p.context,p.ports)]){try{await work();}catch(error){if(!error.message.includes('authority changed'))throw error;denied++;}}const reads=p.reads();const retained=await p.driver.read({company:'alpha',user:'alice',generation:p.active.dataGeneration},'qr',1,'drafts','draft');return{denied,reads,retained};});assert.equal(result.denied,3);assert.equal(result.reads,0);assert.equal(httpRequests,1);assert.equal(JSON.parse(result.retained.payload).text,'retained across account switch');
+});
+
+test('old-tab logout cannot clear the new identity, including after read-only broadcast/UI inspection',async t=>{
+ const f=await fixture(t),first=await f.open(),second=await f.anotherPage();await first.evaluate(()=>globalThis.s.confirm('alice'));await second.evaluate(()=>globalThis.s.confirm('carol'));
+ const result=await first.evaluate(async()=>{const s=globalThis.s;const peek=await s.store.peekLastConfirmed();await s.coordinator.logout();return{peek,saved:await s.store.peekLastConfirmed()};});assert.equal(result.peek.user,'carol');assert.equal(result.saved.user,'carol');
+ const active=await second.evaluate(async()=>{const s=globalThis.s;await s.coordinator.activate('qr');return s.store.run(s.coordinator.currentLease().session,s.coordinator.currentLease().signal,async()=>true);});assert.equal(active,true);
 });

@@ -1,7 +1,7 @@
 {
   "androidVersionCode": 8,
   "versionName": "0.1.0",
-  "webHostVersion": 1,
+  "webHostVersion": 2,
   "sharedAbi": 1,
   "capabilities": {
     "secureSession": [

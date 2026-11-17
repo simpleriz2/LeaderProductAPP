@@ -14,7 +14,7 @@ module.exports = Repack.defineRspackConfig(({platform}) => ({
     { test: /\.[cm]?[jt]sx?$/, type: 'javascript/auto', use: { loader: '@callstack/repack/babel-swc-loader', options: {} } },
     ...Repack.getAssetTransformRules(),
   ] },
-  plugins: [new DefinePlugin({ __LP2_PROBE_VERSION__: JSON.stringify(version) }), new Repack.RepackPlugin({ extraChunks: [{ type: 'remote', outputPath: path.resolve(__dirname, 'build/remote-packages', name, platform) }] }), new Repack.plugins.ModuleFederationPluginV2({
+  plugins: [new DefinePlugin({ __LP2_PROBE_VERSION__: JSON.stringify(version), __LP2_PROBE_FAIL_STARTUP__: false }), new Repack.RepackPlugin({ extraChunks: [{ type: 'remote', outputPath: path.resolve(__dirname, 'build/remote-packages', name, platform) }] }), new Repack.plugins.ModuleFederationPluginV2({
     manifest: { additionalData: ({stats}) => { stats.metaData.buildInfo.buildVersion = version; return stats; } },
     name, filename: `${name}.container.bundle`, dts: false,
     exposes: { './Screen': `./remotes/${name}.tsx` },
