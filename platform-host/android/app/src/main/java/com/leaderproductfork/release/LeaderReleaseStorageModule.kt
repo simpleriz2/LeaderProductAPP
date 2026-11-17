@@ -53,6 +53,10 @@ class LeaderReleaseStorageModule(context: ReactApplicationContext) : ReactContex
   @ReactMethod fun cachedFile(company: String, user: String, hash: String, promise: Promise) = work(promise) {
     files.cached(company,user,hash)?.let { Base64.encodeToString(it,Base64.NO_WRAP) }
   }
+  @ReactMethod fun verifiedFile(company:String,user:String,hash:String,size:Double,promise:Promise)=work(promise){
+    require(size.isFinite()&&size==size.toInt().toDouble())
+    "file://"+files.executionFile(company,user,hash,size.toInt()).absolutePath
+  }
   @ReactMethod fun stage(namespace: String, hash: String, encoded: String, promise: Promise) = work(promise,encoded.length.toLong()) {
     require(encoded.length <= 16 * 1024 * 1024)
     files.stage(namespace,hash,Base64.decode(encoded,Base64.NO_WRAP)); null

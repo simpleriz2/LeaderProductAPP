@@ -29,4 +29,18 @@ class ReleaseFilesTest {
     files.stage("alpha/alice/set-1/attempt-1",hash,bytes);files.promote("alpha/alice/set-1/attempt-1","alpha","alice","set-1",listOf(hash))
     files.blob("alpha","alice",hash).writeText("corrupt");assertNull(files.cached("alpha","alice",hash))
   }
+  @Test fun executableMaterializationRequiresPrivateVerifiedBytesAndExactSize() = fixture { files ->
+    val bytes="trusted executable".toByteArray();val hash=ReleaseCrypto.sha256(bytes)
+    assertThrows(Exception::class.java){files.executionFile("alpha","alice",hash,bytes.size)}
+    files.stage("alpha/alice/set-1/attempt-1",hash,bytes);files.promote("alpha/alice/set-1/attempt-1","alpha","alice","set-1",listOf(hash))
+    assertThrows(Exception::class.java){files.executionFile("beta","bob",hash,bytes.size)}
+    assertThrows(Exception::class.java){files.executionFile("alpha","alice",hash,bytes.size+1)}
+    val executable=files.executionFile("alpha","alice",hash,bytes.size)
+    assertTrue(executable.absolutePath.endsWith("/execution/alpha/alice/$hash.bundle"));assertArrayEquals(bytes,executable.readBytes())
+    executable.writeText("corrupt derived copy");assertArrayEquals(bytes,files.executionFile("alpha","alice",hash,bytes.size).readBytes())
+    files.blob("alpha","alice",hash).writeText("corrupted source")
+    assertThrows(Exception::class.java){files.executionFile("alpha","alice",hash,bytes.size)}
+    assertArrayEquals(bytes,executable.readBytes())
+  }
+
 }

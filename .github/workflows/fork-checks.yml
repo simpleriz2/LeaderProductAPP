@@ -55,6 +55,7 @@ jobs:
       - run: npm run test:database
       - run: npm run bundle:android:dev
       - run: npm run bundle:android
+      - run: npm run bundle:android:loader
       - run: npm run build:web
   standalone-android:
     runs-on: ubuntu-latest

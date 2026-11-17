@@ -39,6 +39,17 @@ class ReleaseFiles(private val root: File, private val writeAtomic: (File, ByteA
     val bytes = file.readBytes()
     return if(bytes.size <= MAX_BYTES && ReleaseCrypto.sha256(bytes) == digest(hash)) bytes else null
   }
+  /** Materialize ONLY digest-verified private bytes for Re.Pack's absolute-file evaluator. */
+  fun executionFile(company:String,user:String,hash:String,size:Int):File{
+    require(size in 0..MAX_BYTES)
+    val bytes=cached(company,user,hash)?:error("Missing verified executable")
+    require(bytes.size==size){"Executable size mismatch"}
+    val target=File(root,"execution/${part(company)}/${part(user)}/${digest(hash)}.bundle")
+    val reusable=try{target.exists()&&verified(target,hash).contentEquals(bytes)}catch(_:Exception){false}
+    if(!reusable)writeAtomic(target,bytes)
+    require(verified(target,hash).size==size)
+    return target
+  }
   fun stage(namespace: String, hash: String, bytes: ByteArray) {
     require(bytes.size <= MAX_BYTES && ReleaseCrypto.sha256(bytes) == digest(hash))
     writeAtomic(File(staging(namespace),hash),bytes)

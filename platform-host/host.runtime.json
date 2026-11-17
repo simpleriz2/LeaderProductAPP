@@ -1,9 +1,9 @@
 {
   "android": {
-    "version": 7,
+    "version": 8,
     "versionName": "0.1.0",
     "runtime": "lp2-android-d8911b2e2fb477ee280ef47d",
-    "nativeFingerprint": "4b4626bb14debd0320494a2a154ea9d6c89b87c14db74a6bb10c79e74de4940b",
+    "nativeFingerprint": "3968cd58911d08755c2751f9d3cfd347382cb6a85059d0d3faa8434cb8d0d77f",
     "capabilities": {
       "secureSession": [
         1
@@ -24,6 +24,9 @@
         1
       ],
       "database": [
+        1
+      ],
+      "nativeScriptFiles": [
         1
       ]
     },

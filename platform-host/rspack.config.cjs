@@ -11,6 +11,8 @@ module.exports = Repack.defineRspackConfig({
   output: { uniqueName: 'lp2Host' },
   plugins: [new Repack.RepackPlugin(), new Repack.plugins.ModuleFederationPluginV2({
     name: 'lp2Host', dts: false,
+    defaultRuntimePlugins: [],
+    runtimePlugins: [require.resolve('./runtime/verifiedNativeEntry.ts')],
     shared: {
       react: { singleton: true, eager: true, requiredVersion: '19.3.0', strictVersion: true },
       'react-native': { singleton: true, eager: true, requiredVersion: '0.88.1', strictVersion: true },
