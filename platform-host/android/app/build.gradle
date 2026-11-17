@@ -109,6 +109,8 @@ android {
 }
 
 dependencies {
+    implementation("com.google.crypto.tink:tink-android:1.24.0")
+    testImplementation("junit:junit:4.13.2")
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
