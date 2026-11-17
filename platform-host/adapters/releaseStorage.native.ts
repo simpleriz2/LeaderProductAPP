@@ -1,4 +1,5 @@
 import { NativeModules } from 'react-native';
+import {parseStoredActivation} from '../core/storedActivation.ts';
 import type { Activation, ArtifactFile, ReleaseStorage } from '../core/releaseSet';
 import { decodeBase64, encodeBase64 } from '../core/bytes.ts';
 export type ReleaseStorageBridge = {
@@ -14,9 +15,7 @@ export type ReleaseStorageBridge = {
 export function createNativeReleaseStorage(bridge:ReleaseStorageBridge=NativeModules.LeaderReleaseStorage):ReleaseStorage & {lastGood(company:string,user:string):Promise<Activation|null>} {
   if(!bridge?.confirmHealthy)throw Error('Native release storage unavailable');
   const parse=(raw:string|null,company:string,user:string):Activation|null=>{
-    if(raw===null)return null;const activation=JSON.parse(raw) as Activation;
-    if(!activation || activation.company!==company || activation.user!==user || activation.release?.company!==company || typeof activation.signed?.payload!=='string' || typeof activation.dataGeneration!=='string')throw Error('Corrupt release namespace');
-    return activation;
+    return raw===null?null:parseStoredActivation(JSON.parse(raw),company,user);
   };
   return {
     current:async(company,user)=>parse(await bridge.current(company,user),company,user),

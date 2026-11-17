@@ -1,5 +1,6 @@
 /** Local durability adapter; Node SQLite/filesystem, never imported into Android/Web. */
 const fs = require('node:fs');
+const {parseStoredActivation}=require('../../core/storedActivation.ts');
 const { atomicallyWrite } = require('../io/atomicFile.cjs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
@@ -13,7 +14,12 @@ function openDiskStore(root, failpoint = () => {}) {
   db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS activation (company TEXT NOT NULL, user TEXT NOT NULL, current TEXT, lkg TEXT, PRIMARY KEY(company,user));');
   const blobFile = (company, user, hash) => path.join(root, 'blobs', safePart(company), safePart(user), safePart(hash));
   const stageDir = ns => { ns.split('/').forEach(safePart); return path.join(root, 'staging', digest(ns)); };
-  const read = (company, user, field = 'current') => { safePart(company); safePart(user); const value = db.prepare(`SELECT ${field} FROM activation WHERE company=? AND user=?`).get(company,user)?.[field]; return value ? JSON.parse(value) : null; };
+  const read = (company,user,field='current') => {
+    safePart(company);safePart(user);const record=db.prepare(`SELECT ${field} FROM activation WHERE company=? AND user=?`).get(company,user);
+    if(!record)return null;const value=record[field];if(value===null&&field==='lkg')return null;
+    if(typeof value!=='string')throw Error('Corrupt stored activation');
+    return parseStoredActivation(JSON.parse(value),company,user);
+  };
   return {
     current: async (company,user) => read(company,user),
     cachedFile: async (company,user,file) => {

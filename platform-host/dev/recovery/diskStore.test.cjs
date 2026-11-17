@@ -142,3 +142,9 @@ test('actual session coordinator gates lifecycle on durable bootstrap during log
   const before=events.length;await coordinator.goOffline();assert.ok(events.slice(before).includes('qr:init:false:set-2'));assert.ok(!events.slice(before).some(e=>e==='help:init:false:set-2'));
   const installed=await f.storage.current('alpha','alice');await coordinator.logout();assert.equal(saved,null);preserved(f,installed);assert.equal((await f.storage.current('alpha','alice')).dataGeneration,installed.dataGeneration);
 });
+test('existing corrupt bootstrap pointer is recovery, never a first-install reset or overwrite',async t=>{
+  const f=fixture(t);const active=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);await seed(f,active);
+  const db=new DatabaseSync(path.join(f.root,'bootstrap.sqlite'));db.prepare('UPDATE activation SET current=? WHERE company=? AND user=?').run('null','alpha','alice');db.close();
+  await assert.rejects(f.storage.current('alpha','alice'),/Corrupt stored activation/);
+  await assert.rejects(stageAndActivate(f.signed(f.release(2)),f.context,f.ports),/Corrupt stored activation/);preserved(f,active);assert.equal((await f.storage.lastGood('alpha','alice')).release.id,'set-1');
+});

@@ -1,4 +1,5 @@
 package com.leaderproduct.app.fork.database
+import com.leaderproduct.app.fork.platform.ByteBudget
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.concurrent.Executors

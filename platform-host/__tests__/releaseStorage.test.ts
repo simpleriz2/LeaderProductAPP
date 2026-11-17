@@ -1,11 +1,11 @@
 import {createNativeReleaseStorage,type ReleaseStorageBridge} from '../adapters/releaseStorage.native';
 import type {Activation} from '../core/releaseSet';
-const activation={company:'alpha',user:'alice',release:{company:'alpha',id:'set-1'},signed:{payload:'signed fixture'},dataGeneration:'data-1'} as Activation;
+const activation={company:'alpha',user:'alice',release:{format:2,platform:'android',company:'alpha',id:'set-1',artifacts:[],minHost:1,runtime:'fixture-runtime',api:'1.0.0'},signed:{keyId:'fixture',payload:'signed fixture',signature:'fixture-signature'},dataGeneration:'data-1'} as Activation;
 function bridge():ReleaseStorageBridge{return {current:jest.fn(async()=>JSON.stringify(activation)),lastGood:jest.fn(async()=>null),cachedFile:jest.fn(async()=>null),stage:jest.fn(async()=>{}),discard:jest.fn(async()=>{}),confirmHealthy:jest.fn(async()=>{}),commit:jest.fn(async()=>{})};}
 test('native storage reads only matching activation namespaces and never substitutes unavailable storage',async()=>{
   const native=bridge();const store=createNativeReleaseStorage(native);
   await expect(store.current('alpha','alice')).resolves.toEqual(activation);await expect(store.lastGood('alpha','alice')).resolves.toBeNull();
-  await expect(store.current('beta','bob')).rejects.toThrow('namespace');
+  await expect(store.current('beta','bob')).rejects.toThrow('Corrupt stored activation');
   native.current=async()=>'{broken';await expect(store.current('alpha','alice')).rejects.toThrow();
   expect(()=>createNativeReleaseStorage(null as unknown as ReleaseStorageBridge)).toThrow('unavailable');
 });
@@ -16,4 +16,7 @@ test('native storage preserves CAS and bytes while surfacing atomic commit failu
   await store.confirmHealthy(activation);expect(native.confirmHealthy).toHaveBeenCalledWith(JSON.stringify(activation));
   await store.commit(null,activation,'alpha/alice/set-1/attempt');expect(native.commit).toHaveBeenCalledWith(null,JSON.stringify(activation),'alpha/alice/set-1/attempt');
   native.commit=async()=>{throw Error('Disk full');};await expect(store.commit(activation,activation,'alpha/alice/set-1/attempt')).rejects.toThrow('Disk full');
+});
+test('an existing malformed activation cannot silently become a missing first-install pointer',async()=>{
+  const native=bridge();native.current=async()=> '{}';await expect(createNativeReleaseStorage(native).current('alpha','alice')).rejects.toThrow('Corrupt stored activation');
 });

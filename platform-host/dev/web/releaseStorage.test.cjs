@@ -45,3 +45,11 @@ test('owned browser crash DURING a multi-store write aborts candidate blobs/poin
  page=await f.open();const state=await page.evaluate(async()=>({active:await globalThis.f.verify(),good:await globalThis.f.store.lastGood('alpha','alice')}));
  assert.equal(state.active.release.id,'set-1');assert.equal(state.good.release.id,'set-1');
 });
+test('existing malformed IDB pointer cannot trigger first-install initialization or overwrite retained state',async t=>{
+ const f=await fixture(t),page=await f.open();const state=await page.evaluate(async()=>{const f=globalThis.f;const first=await f.install('one');await f.store.confirmHealthy(first);
+  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('lp2-release-bootstrap-v2',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  await new Promise((resolve,reject)=>{const tx=db.transaction('pointers','readwrite',{durability:'strict'});tx.objectStore('pointers').put({lkg:first},['alpha','alice']);tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error);});db.close();
+  let denied=0;try{await f.store.current('alpha','alice');}catch{denied++;}try{await f.install('two');}catch{denied++;}
+  return{denied,good:await f.store.lastGood('alpha','alice'),bytes:await f.store.cachedFile('alpha','alice',first.release.artifacts[0])};
+ });assert.equal(state.denied,2);assert.equal(state.good.release.id,'set-1');assert.ok(state.bytes);
+});

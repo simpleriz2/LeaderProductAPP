@@ -1,4 +1,4 @@
-package com.leaderproduct.app.fork.database
+package com.leaderproduct.app.fork.platform
 import java.util.concurrent.atomic.AtomicLong
 /** A byte bound supplements the task-count bound; large queued bridge strings cannot accumulate unchecked. */
 class ByteBudget(private val maximum:Long){

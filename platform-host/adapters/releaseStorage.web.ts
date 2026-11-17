@@ -1,3 +1,4 @@
+import {parseStoredActivation} from '../core/storedActivation.ts';
 import {artifactFiles} from '../core/releaseSet.ts';
 import type {Activation,ArtifactFile,ReleaseStorage,Trust} from '../core/releaseSet';
 const part=(value:string)=>{if(!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(value))throw Error('Invalid namespace');return value;};
@@ -39,13 +40,13 @@ export async function openWebReleaseStorage(trust:Pick<Trust,'sha256'>,factory:I
     return bytes;
   };
   return {
-    current:async(company,user)=>(await read<Pointer>('pointers',key(company,user)))?.current||null,
-    lastGood:async(company,user)=>(await read<Pointer>('pointers',key(company,user)))?.lkg||null,
+    current:async(company,user)=>{const pointer=await read<Pointer>('pointers',key(company,user));return pointer===undefined?null:parseStoredActivation(pointer?.current,company,user);},
+    lastGood:async(company,user)=>{const pointer=await read<Pointer>('pointers',key(company,user));return pointer?.lkg==null?null:parseStoredActivation(pointer.lkg,company,user);},
     confirmHealthy:async expected=>{
       const snapshot=structuredClone(expected);
       await transaction<void>(['pointers'],'readwrite',(tx,done,fail)=>{
         const store=tx.objectStore('pointers');const request=store.get(key(snapshot.company,snapshot.user));
-        request.onsuccess=()=>{try{if(!same(request.result?.current,snapshot)){fail(Error('Concurrent health confirmation'));return;}store.put({current:snapshot,lkg:snapshot},key(snapshot.company,snapshot.user));done();}catch(error){fail(error);}};
+        request.onsuccess=()=>{try{if(request.result!==undefined)parseStoredActivation(request.result?.current,snapshot.company,snapshot.user);if(!same(request.result?.current,snapshot)){fail(Error('Concurrent health confirmation'));return;}store.put({current:snapshot,lkg:snapshot},key(snapshot.company,snapshot.user));done();}catch(error){fail(error);}};
       });
     },
     cachedFile:cached,
@@ -59,7 +60,7 @@ export async function openWebReleaseStorage(trust:Pick<Trust,'sha256'>,factory:I
       await transaction<void>(['staging'],'readwrite',(tx,done)=>{tx.objectStore('staging').delete(IDBKeyRange.bound([namespace,''],[namespace,'\uffff']));done();});
     },
     commit:async(expected,next,namespace)=>{
-      const snapshot=structuredClone(next);const expectedSnapshot=structuredClone(expected);const parts=nsParts(namespace);
+      const snapshot=structuredClone(parseStoredActivation(next,next.company,next.user));const expectedSnapshot=structuredClone(expected);const parts=nsParts(namespace);
       if(!same(parts.slice(0,3),[snapshot.company,snapshot.user,snapshot.release.id])||snapshot.release.company!==snapshot.company)throw Error('Cross-namespace commit');
       part(snapshot.dataGeneration);
       const files=artifactFiles(snapshot.release);if(files.length>4096)throw Error('Inventory too large');
@@ -74,6 +75,7 @@ export async function openWebReleaseStorage(trust:Pick<Trust,'sha256'>,factory:I
         const pointers=tx.objectStore('pointers');const request=pointers.get(key(snapshot.company,snapshot.user));
         request.onsuccess=()=>{try{
           const previous=request.result as Pointer|undefined;
+          if(previous!==undefined)parseStoredActivation(previous?.current,snapshot.company,snapshot.user);
           if(!same(previous?.current||null,expectedSnapshot)){fail(Error('Concurrent activation'));return;}
           for(const file of files)tx.objectStore('blobs').put(captured.get(file.digest),[snapshot.company,snapshot.user,file.digest]);
           pointers.put({current:snapshot,lkg:previous?.lkg||null},key(snapshot.company,snapshot.user));
