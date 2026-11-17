@@ -1,3 +1,4 @@
+import {snapshotConfirmedSession} from './confirmedSession.ts';
 /** Auth reports confirmed identity; modules own business work. No business imports. */
 export type ConfirmedSession = { company: string; user: string; modules: readonly string[]; confirmation: string };
 export type SessionLease = { session: ConfirmedSession; online: boolean; signal: AbortSignal; assertCurrent(): void };
@@ -15,9 +16,14 @@ export interface ModuleLifecycle {
   suspend(reason: string): Promise<void>;
   dispose(): Promise<void>;
 }
+export interface SessionPreparation {
+  /** Verify/prepare the assigned or offline installed release BEFORE any business module init. */
+  prepare(lease: SessionLease): Promise<void>;
+}
 export class SessionCoordinator {
   private session: ConfirmedSession | null = null;
   private online = false;
+  private prepared = false;
   private authorizationInvalidated = false;
   private blocked = false;
   private epoch = 0;
@@ -25,13 +31,18 @@ export class SessionCoordinator {
   private running = new Map<string, ModuleLifecycle>();
   private desired = new Set<string>();
   private queue: Promise<unknown> = Promise.resolve();
-  constructor(private readonly store: SessionStore, private readonly modules: readonly ModuleLifecycle[]) {
+  private readonly store: SessionStore;
+  private readonly modules: readonly ModuleLifecycle[];
+  private readonly preparation: SessionPreparation;
+  constructor(store: SessionStore, modules: readonly ModuleLifecycle[], preparation: SessionPreparation) {
+    this.store=store;this.modules=modules;this.preparation=preparation;
+    if(!preparation?.prepare)throw Error('Session release preparation is required');
     if(new Set(modules.map(m => m.id)).size !== modules.length) throw Error('Duplicate module');
   }
   private serialize<T>(work: () => Promise<T>): Promise<T> {
     const next = this.queue.then(work); this.queue = next.catch(() => undefined); return next;
   }
-  private invalidate() { this.epoch++; this.controller.abort(); return this.epoch; }
+  private invalidate() { this.prepared=false;this.epoch++; this.controller.abort(); return this.epoch; }
   private async stop(reason: string) {
     const errors: unknown[] = [];
     for(const [id, module] of [...this.running].reverse()) {
@@ -49,8 +60,15 @@ export class SessionCoordinator {
       if(signal.aborted || epoch !== this.epoch || this.blocked) throw Error('Stale session lease');
     } };
   }
+  /** Available to host preparation/recovery; does not authorize business module startup itself. */
+  currentLease(): SessionLease { return this.lease(); }
+  private async prepare() {
+    const lease=this.lease();
+    await this.preparation.prepare(lease);lease.assertCurrent();this.prepared=true;
+  }
   private async start(id: string) {
     const lease = this.lease();
+    if(!this.prepared)throw Error('Session release is not ready');
     if(!lease.session.modules.includes(id)) throw Error('Module not entitled');
     const module = this.modules.find(m => m.id === id);
     if(!module) throw Error('Unknown module');
@@ -63,7 +81,7 @@ export class SessionCoordinator {
   }
   /** Called only after online Central confirmation. No offline login method exists. */
   confirm(confirmed: ConfirmedSession): Promise<void> {
-    const session = Object.freeze({ ...confirmed, modules: Object.freeze([...confirmed.modules]) });
+    const session = snapshotConfirmedSession(confirmed);
     const revision = this.invalidate();
     return this.serialize(async () => {
       if(revision !== this.epoch) throw Error('Superseded session transition');
@@ -75,6 +93,7 @@ export class SessionCoordinator {
       if(revision !== this.epoch) throw Error('Superseded session transition');
       this.authorizationInvalidated = false;
       this.session = session; this.online = true; this.controller = new AbortController();
+      await this.prepare();
       for(const id of [...this.desired]) if(session.modules.includes(id)) await this.start(id); else this.desired.delete(id);
     });
   }
@@ -88,7 +107,8 @@ export class SessionCoordinator {
       const saved = await this.store.loadLastConfirmed();
       if(revision !== this.epoch) throw Error('Superseded session transition');
       if(!saved) throw Error('First login requires Central connection');
-      this.session = saved; this.online = false; this.controller = new AbortController();
+      this.session = snapshotConfirmedSession(saved); this.online = false; this.controller = new AbortController();
+      await this.prepare();
     });
   }
   goOffline(): Promise<void> {
@@ -100,6 +120,7 @@ export class SessionCoordinator {
       if(revision !== this.epoch) throw Error('Superseded session transition');
       if(!previous) return;
       this.session = previous; this.online = false; this.controller = new AbortController();
+      await this.prepare();
       for(const id of this.desired) await this.start(id);
     });
   }

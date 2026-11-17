@@ -130,3 +130,15 @@ test('health check cannot promote a candidate after logout or a concurrent activ
   await assert.rejects(confirmReleaseHealthy(owned,f.context,ports,first,async()=>{owned.controller.abort();}),/Stale/);assert.equal(await f.storage.lastGood('alpha','alice'),null);
   await assert.rejects(confirmReleaseHealthy(lease(f),f.context,ports,first,async()=>{await stageAndActivate(f.signed(f.release(2)),f.context,f.ports);}),/Concurrent health/);assert.equal(await f.storage.lastGood('alpha','alice'),null);
 });
+const {SessionCoordinator}=require('../../core/sessionCoordinator.ts');
+test('actual session coordinator gates lifecycle on durable bootstrap during login/refresh/offline and preserves drafts at logout',async t=>{
+  const f=fixture(t);let saved=null;const events=[];let assigned=f.signed(f.release(1));let boot;
+  const modules=['qr','help'].map(id=>({id,requiresOnline:id==='help',init:async owned=>{owned.assertCurrent();const current=await f.storage.current('alpha','alice');f.storage.readVerifiedBytes(current);events.push(`${id}:init:${owned.online}:${current.release.id}`);},activate:async()=>{events.push('activate');},suspend:async()=>{events.push('suspend');},dispose:async()=>{events.push('dispose');}}));
+  const coordinator=new SessionCoordinator({loadLastConfirmed:async()=>saved,saveConfirmed:async value=>{saved=value;},clearSession:async()=>{saved=null;}},modules,{prepare:async owned=>{boot=await bootstrapRelease(owned,f.context,bootstrapPorts(f,assigned));events.push(`bootstrap:${boot.activation.release.id}:${owned.online}`);}});
+  await coordinator.confirm({company:'alpha',user:'alice',modules:['qr','help'],confirmation:'central-1'});assert.deepEqual(events,['bootstrap:set-1:true']);await seed(f,boot.activation);
+  await coordinator.activate('qr');await coordinator.activate('help');
+  assigned=f.signed(f.release(2));await coordinator.confirm({...saved,confirmation:'central-2'});
+  assert.ok(events.indexOf('bootstrap:set-2:true')<events.indexOf('qr:init:true:set-2'));preserved(f,boot.activation);
+  const before=events.length;await coordinator.goOffline();assert.ok(events.slice(before).includes('qr:init:false:set-2'));assert.ok(!events.slice(before).some(e=>e==='help:init:false:set-2'));
+  const installed=await f.storage.current('alpha','alice');await coordinator.logout();assert.equal(saved,null);preserved(f,installed);assert.equal((await f.storage.current('alpha','alice')).dataGeneration,installed.dataGeneration);
+});

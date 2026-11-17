@@ -15,6 +15,6 @@ test('secure read/write failure propagates without plaintext fallback or data cl
 });
 test('corrupt namespace and duplicate module rights are rejected', async () => {
   const bridge = { readSession: async () => JSON.stringify({...session,company:'../beta'}),writeSession:jest.fn(async()=>undefined),clearSession:async()=>undefined };
-  const store=createSecureSessionStore(bridge);await expect(store.loadLastConfirmed()).rejects.toThrow('Invalid saved');
-  await expect(store.saveConfirmed({...session,modules:['qr','qr']})).rejects.toThrow('Invalid saved');expect(bridge.writeSession).not.toHaveBeenCalled();
+  const store=createSecureSessionStore(bridge);await expect(store.loadLastConfirmed()).rejects.toThrow('Invalid confirmed');
+  await expect(store.saveConfirmed({...session,modules:['qr','qr']})).rejects.toThrow('Invalid confirmed');expect(bridge.writeSession).not.toHaveBeenCalled();
 });
