@@ -1,0 +1,18 @@
+const{test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const os=require('node:os');const{generateKeyPairSync,sign,verify,randomUUID}=require('node:crypto');const{execFileSync}=require('node:child_process');
+const{packageRemote}=require('../../scripts/packRemote.cjs');const{stageAndActivate,artifactFiles}=require('../../core/releaseSet.ts');const{openDiskStore,digest}=require('../recovery/diskStore.cjs');const{prepareForUser}=require('../recovery/dataGenerations.cjs');
+test('actual Re.Pack remote closures are immutable, complete and activated only after all chunks verify',async t=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'lp2-real-remotes-'));const store=openDiskStore(root);t.after(()=>{store.close();fs.rmSync(root,{recursive:true,force:true});});
+  const qr1=packageRemote('qr','1.0.0'),help1=packageRemote('help','1.0.0');assert.ok(qr1.assets.length>1);assert.ok(help1.assets.length>1);assert.ok(qr1.assets.some(a=>a.name==='mf-manifest.json'));assert.ok(!qr1.assets.some(a=>a.name.endsWith('.map')||a.name==='mf-stats.json'));
+  const context={platform:'android',company:'alpha',user:'alice',host:1,runtime:'fixture-runtime',compatibleApis:['1.0.0'],modules:['qr','help']};
+  const pair=generateKeyPairSync('ed25519');const signed=release=>{const payload=JSON.stringify(release);return{keyId:'fixture',payload,signature:sign(null,Buffer.from(payload),pair.privateKey).toString('base64')};};
+  const release=(id,qr)=>({format:1,platform:'android',id,company:'alpha',minHost:1,runtime:context.runtime,api:'1.0.0',artifacts:[qr,help1]});
+  const ports={storage:store,createAttemptId:randomUUID,trust:{sha256:async bytes=>digest(bytes),verifyEd25519:async(id,payload,sig)=>id==='fixture'&&verify(null,Buffer.from(payload),pair.publicKey,Buffer.from(sig,'base64'))},download:async key=>fs.readFileSync(path.join(__dirname,'../../build/immutable',key)),prepareData:(r,p)=>prepareForUser(root,'alice',r,p)};
+  const first=await stageAndActivate(signed(release('set-1',qr1)),context,ports);assert.equal(store.readVerifiedBytes(first).length,artifactFiles(first.release).length);
+  const qr2=packageRemote('qr','2.0.0');assert.notDeepEqual(artifactFiles({artifacts:[qr1]}).map(f=>f.digest),artifactFiles({artifacts:[qr2]}).map(f=>f.digest));assert.deepEqual(JSON.parse(fs.readFileSync(path.join(__dirname,'../../build/inventories/help-1.0.0.json'))),help1);
+  // Exercise the host build between remote builds and activation.
+  execFileSync(process.execPath,[path.join(__dirname,'../../node_modules/@react-native-community/cli/build/bin.js'),'bundle','--platform','android','--dev','false','--entry-file','index.js','--bundle-output','build/android/index.android.bundle','--assets-dest','build/android'],{cwd:path.join(__dirname,'../..'),stdio:'pipe',maxBuffer:8*1024*1024});
+  assert.equal(JSON.parse(fs.readFileSync(path.join(__dirname,'../../build/compiled-remotes/help/android/mf-manifest.json'))).name,'help');
+  const second=await stageAndActivate(signed(release('set-2',qr2)),context,ports);store.readVerifiedBytes(first);store.readVerifiedBytes(second);assert.equal((await store.lastGood('alpha','alice')).release.id,'set-1');
+  const corrupt={...ports,download:async key=>key===qr1.assets[0].path?Buffer.from('corrupt-chunk'):ports.download(key)};
+  await assert.rejects(stageAndActivate(signed(release('set-3',qr1)),context,corrupt));assert.equal((await store.current('alpha','alice')).release.id,'set-2');
+});

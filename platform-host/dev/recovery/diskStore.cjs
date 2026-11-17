@@ -1,17 +1,11 @@
 /** Local durability adapter; Node SQLite/filesystem, never imported into Android/Web. */
 const fs = require('node:fs');
+const { atomicallyWrite } = require('../io/atomicFile.cjs');
 const path = require('node:path');
-const { createHash, randomUUID } = require('node:crypto');
+const { createHash } = require('node:crypto');
+const { artifactFiles } = require('../../core/releaseSet.ts');
 const { DatabaseSync } = require('node:sqlite');
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
-function atomicallyWrite(file, bytes) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const temporary = `${file}.${randomUUID()}.pending`;
-  const fd = fs.openSync(temporary, 'w');
-  try { fs.writeFileSync(fd, bytes); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
-  fs.renameSync(temporary, file);
-  const dir = fs.openSync(path.dirname(file), 'r'); try { fs.fsyncSync(dir); } finally { fs.closeSync(dir); }
-}
 function safePart(value) { if(typeof value !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(value)) throw Error('Invalid namespace'); return value; }
 function openDiskStore(root, failpoint = () => {}) {
   fs.mkdirSync(root, { recursive: true });
@@ -31,7 +25,7 @@ function openDiskStore(root, failpoint = () => {}) {
     commit: async (expected, next, ns) => {
       const staging = stageDir(ns);
       // Promote immutable content before committing pointers. Orphans after crash are safe; GC is deferred.
-      for(const artifact of next.release.artifacts) {
+      for(const artifact of artifactFiles(next.release)) {
         const bytes = fs.readFileSync(path.join(staging, safePart(artifact.digest)));
         if(digest(bytes) !== artifact.digest) throw Error('Staged cache tampered');
         atomicallyWrite(blobFile(next.company, next.user, artifact.digest), bytes);
@@ -47,7 +41,7 @@ function openDiskStore(root, failpoint = () => {}) {
       failpoint('afterCommit');
       try { fs.rmSync(staging, { recursive: true, force: true }); } catch { /* Committed state is valid; defer staging GC. */ }
     },
-    readVerifiedBytes: activation => activation.release.artifacts.map(a => { const bytes = fs.readFileSync(blobFile(activation.company, activation.user, a.digest)); if(digest(bytes) !== a.digest) throw Error('Cached artifact tampered'); return bytes; }),
+    readVerifiedBytes: activation => artifactFiles(activation.release).map(a => { const bytes = fs.readFileSync(blobFile(activation.company, activation.user, a.digest)); if(digest(bytes) !== a.digest) throw Error('Cached artifact tampered'); return bytes; }),
     blobFile,
     close: () => db.close(),
   };

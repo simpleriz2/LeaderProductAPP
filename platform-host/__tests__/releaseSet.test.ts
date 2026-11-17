@@ -3,8 +3,8 @@ import { stageAndActivate, verifyRelease, type Activation, type ReleaseSet, type
 const key = generateKeyPairSync('ed25519');
 const bytes = new Uint8Array(Buffer.from('trusted probe'));
 const digest = createHash('sha256').update(bytes).digest('hex');
-const context: ReleaseContext = { company: 'alpha', user: 'alice', host: 1, runtime: 'rn-0.88.1-react-19.3.0', compatibleApis: ['1.0.0'], modules: ['qr', 'help'] };
-const release: ReleaseSet = { id: 'alpha-1', company: 'alpha', minHost: 1, runtime: context.runtime, api: '1.0.0', artifacts: ['qr', 'help'].map(module => ({ module, version: '1.0.0', contract: '1.0.0', schema: 1, digest, path: `artifacts/${digest}.bundle` })) };
+const context: ReleaseContext = { platform: 'android', company: 'alpha', user: 'alice', host: 1, runtime: 'rn-0.88.1-react-19.3.0', compatibleApis: ['1.0.0'], modules: ['qr', 'help'] };
+const release: ReleaseSet = { format: 1, platform: 'android', id: 'alpha-1', company: 'alpha', minHost: 1, runtime: context.runtime, api: '1.0.0', artifacts: ['qr', 'help'].map(module => ({ module, name: `${module}.container.bundle`, size: bytes.length, assets: [], version: '1.0.0', contract: '1.0.0', schema: 1, digest, path: `artifacts/${digest}.bundle` })) };
 const signed = (value: ReleaseSet) => { const payload = JSON.stringify(value); return { keyId: 'test-key', payload, signature: sign(null, Buffer.from(payload), key.privateKey).toString('base64') }; };
 let current: Activation | null;
 let staged: Map<string, Uint8Array[]>;
@@ -63,4 +63,15 @@ test('two companies can receive different pinned release sets; no global latest 
   expect(alpha.id).toBe('alpha-1'); expect(beta.id).toBe('beta-4');
   expect(alpha.artifacts[0].version).toBe('1.0.0'); expect(beta.artifacts[0].version).toBe('2.0.0');
   expect(alpha.artifacts[1]).toEqual(beta.artifacts[1]);
+});
+test('platform/format and every asset name/size are enforced before execution',async()=>{
+  await expect(verifyRelease(signed({...release,platform:'web'}),context,ports.trust)).rejects.toThrow('platform');
+  const bad={...release,artifacts:release.artifacts.map(a=>({...a,assets:[{name:'../escape.bundle',size:1,digest:a.digest,path:a.path}]}))};
+  await expect(verifyRelease(signed(bad),context,ports.trust)).rejects.toThrow('asset name');
+  const duplicate={...release,artifacts:release.artifacts.map(a=>({...a,assets:[{name:a.name,size:a.size,digest:a.digest,path:a.path}]}))};
+  await expect(verifyRelease(signed(duplicate),context,ports.trust)).rejects.toThrow('asset name');
+});
+test('a signed empty entitlement set permits Core-only access without downloading modules',async()=>{
+  ports.download=jest.fn();ports.storage.commit=async(_,next)=>{current=next;};
+  await stageAndActivate(signed({...release,artifacts:[]}),{...context,modules:[]},ports);expect(current?.release.artifacts).toEqual([]);expect(ports.download).not.toHaveBeenCalled();
 });

@@ -1,12 +1,13 @@
 /** Semantic contracts shared by Android and Web. No Expo, UI, SQL or transport imports. */
-export type Artifact = { module: string; version: string; contract: string; schema: number; digest: string; path: string };
-export type ReleaseSet = { id: string; company: string; minHost: number; runtime: string; api: string; artifacts: Artifact[] };
+export type ArtifactFile = { name: string; digest: string; path: string; size: number };
+export type Artifact = ArtifactFile & { module: string; version: string; contract: string; schema: number; assets: ArtifactFile[] };
+export type ReleaseSet = { format: 1; platform: 'android' | 'web'; id: string; company: string; minHost: number; runtime: string; api: string; artifacts: Artifact[] };
 export type SignedRelease = { keyId: string; payload: string; signature: string };
 export interface Trust {
   verifyEd25519(keyId: string, payload: string, signature: string): Promise<boolean>;
   sha256(bytes: Uint8Array): Promise<string>;
 }
-export type ReleaseContext = { company: string; user: string; host: number; runtime: string; compatibleApis: readonly string[]; modules: readonly string[] };
+export type ReleaseContext = { platform: 'android' | 'web'; company: string; user: string; host: number; runtime: string; compatibleApis: readonly string[]; modules: readonly string[] };
 const id = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const identifier = (value: unknown): value is string => typeof value === 'string' && id.test(value);
 const version = /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/;
@@ -15,21 +16,31 @@ export async function verifyRelease(signed: SignedRelease, context: ReleaseConte
   requireValue(signed.payload.length <= 256 * 1024, 'Manifest too large');
   requireValue(await trust.verifyEd25519(signed.keyId, signed.payload, signed.signature), 'Untrusted signature');
   const release: ReleaseSet = JSON.parse(signed.payload);
-  requireValue(release && identifier(release.id) && release.company === context.company, 'Wrong company/release');
+  requireValue(release && release.format === 1 && release.platform === context.platform && ['android','web'].includes(context.platform), 'Incompatible manifest platform/format');
+  requireValue(identifier(release.id) && release.company === context.company, 'Wrong company/release');
   requireValue(identifier(context.company) && identifier(context.user), 'Invalid namespace');
   requireValue(Number.isSafeInteger(release.minHost) && release.minHost > 0 && release.minHost <= context.host, 'Incompatible host');
   requireValue(release.runtime === context.runtime && context.compatibleApis.includes(release.api), 'Incompatible runtime/API');
-  requireValue(Array.isArray(release.artifacts) && release.artifacts.length > 0 && release.artifacts.length <= 128, 'Invalid artifacts');
+  requireValue(Array.isArray(release.artifacts) && release.artifacts.length <= 128, 'Invalid artifacts');
   const seen = new Set<string>();
+  let fileCount = 0; let totalBytes = 0;
   for (const artifact of release.artifacts) {
     requireValue(artifact && identifier(artifact.module) && !seen.has(artifact.module), 'Duplicate/invalid module');
     seen.add(artifact.module);
     requireValue(context.modules.includes(artifact.module), 'Module not entitled');
     requireValue(version.test(artifact.version) && version.test(artifact.contract), 'Versions must be exact');
     requireValue(Number.isSafeInteger(artifact.schema) && artifact.schema >= 0, 'Invalid schema');
-    requireValue(/^[a-f0-9]{64}$/.test(artifact.digest), 'Invalid digest');
-    // Only immutable relative keys, resolved by the trusted artifact transport; never caller URLs.
-    requireValue(artifact.path === `artifacts/${artifact.digest}.bundle`, 'Invalid artifact path');
+    requireValue(Array.isArray(artifact.assets) && artifact.assets.length <= 512, 'Invalid asset inventory');
+    const names = new Set<string>();
+    for(const file of [artifact, ...artifact.assets]) {
+      requireValue(typeof file.name === 'string' && file.name.length <= 512 && file.name.split('/').every(part => part !== '.' && part !== '..' && /^[A-Za-z0-9_.-]{1,255}$/.test(part)) && !names.has(file.name), 'Invalid/duplicate asset name');
+      names.add(file.name);
+      requireValue(/^[a-f0-9]{64}$/.test(file.digest), 'Invalid digest');
+      requireValue(file.path === `artifacts/${file.digest}.bundle`, 'Invalid artifact path');
+      requireValue(Number.isSafeInteger(file.size) && file.size >= 0 && file.size <= 1024 * 1024 * 1024, 'Invalid asset size');
+      fileCount++; totalBytes += file.size;
+      requireValue(fileCount <= 4096 && totalBytes <= 1024 * 1024 * 1024, 'Release inventory too large');
+    }
   }
   requireValue(context.modules.length === seen.size && context.modules.every(m => seen.has(m)), 'Incomplete release set');
   return release;
@@ -37,7 +48,7 @@ export async function verifyRelease(signed: SignedRelease, context: ReleaseConte
 export type Activation = { company: string; user: string; release: ReleaseSet; signed: SignedRelease; dataGeneration: string };
 export interface ReleaseStorage {
   current(company: string, user: string): Promise<Activation | null>;
-  stage(namespace: string, artifact: Artifact, bytes: Uint8Array): Promise<void>;
+  stage(namespace: string, artifact: ArtifactFile, bytes: Uint8Array): Promise<void>;
   discard(namespace: string): Promise<void>;
   /** Must atomically commit code + data pointers iff expected still matches. Keep previous LKG. */
   commit(expected: Activation | null, next: Activation, stagedNamespace: string): Promise<void>;
@@ -58,10 +69,11 @@ export async function stageAndActivate(signed: SignedRelease, context: ReleaseCo
   requireValue(identifier(attempt), 'Invalid attempt id');
   const namespace = `${context.company}/${context.user}/${release.id}/${attempt}`;
   try {
-    for (const artifact of release.artifacts) {
-      const bytes = await ports.download(artifact.path);
-      requireValue(await ports.trust.sha256(bytes) === artifact.digest, 'Artifact digest mismatch');
-      await ports.storage.stage(namespace, artifact, bytes);
+    for (const file of artifactFiles(release)) {
+      const bytes = await ports.download(file.path);
+      requireValue(bytes.length === file.size, 'Artifact size mismatch');
+      requireValue(await ports.trust.sha256(bytes) === file.digest, 'Artifact digest mismatch');
+      await ports.storage.stage(namespace, file, bytes);
     }
     const dataGeneration = await ports.prepareData(release, previous);
     requireValue(identifier(dataGeneration), 'Invalid data generation');
@@ -88,3 +100,5 @@ export async function rollbackCode(signed: SignedRelease, context: ReleaseContex
     return current.dataGeneration;
   } });
 }
+
+export function artifactFiles(release: ReleaseSet): ArtifactFile[] { return release.artifacts.flatMap(module => [module, ...module.assets]); }
