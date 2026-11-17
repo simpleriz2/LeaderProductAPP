@@ -223,3 +223,6 @@ Resource check: 8CPU, available RAM16.7GiB, disk61GiB, no swap; isolated JDK21/S
 
 ### 2026-11-17: active Company binding evidence
 Target TypeScript,104unit tests and actual cross-fork Company HTTP contract-window test1/1 passed. API assignment changed while old bound client continued on API1; API2 client worked concurrently. Deliberately substituted latest token failed before Company send; retiring API1 prevented new old-client credentials. Web UI regression6/6 passed11.28s against pinned API9973501. Previous actual compiled platform variant test1/1 passed18.17s after APK9 metadata update. No native changes in this slice; no device/production traffic.
+
+### 2026-11-17: first QR domain storage slice
+Target TS,104unit,9real SDK SQLite,4QR domain SQLite scenarios and runtime identity gate passed. Tests create isolated temp data, run the actual QR schema owner/SDK driver, reopen durable files and preserve unsent incomplete contact under rights changes. Browser/native UI/API business parity not claimed. No original databases/app storage read, no network submissions.

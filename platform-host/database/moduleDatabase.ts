@@ -35,5 +35,7 @@ export function createDatabaseSession(driver:DataDriver,lease:SessionLease,gener
   if(!guard?.run)throw Error('Data generation guard is required');
   const scope=Object.freeze({company:lease.session.company,user:lease.session.user,generation});validateScope(scope);const allowed=new Map(Object.entries(schemas));const handles=new Map<string,ModuleDatabase>();let disposed=false;
   const checkpoint=()=>{if(disposed)throw Error('Data session disposed');lease.assertCurrent();if(lease.session.company!==scope.company||lease.session.user!==scope.user)throw Error('Data session scope changed');};
-  return Object.freeze({module:(owner:string)=>{checkpoint();if(!lease.session.modules.includes(owner)||!allowed.has(owner))throw Error('Data module not entitled');if(!handles.has(owner))handles.set(owner,new ModuleDatabase(driver,scope,owner,allowed.get(owner)!,()=>{checkpoint();if(!lease.session.modules.includes(owner))throw Error('Data module not entitled');},work=>guard.run(scope,owner,allowed.get(owner)!,lease.signal,work)));return handles.get(owner)!;},dispose:async()=>{if(disposed)return;disposed=true;await driver.close(scope);}});
+  return Object.freeze({scope,module:(owner:string)=>{checkpoint();if(!lease.session.modules.includes(owner)||!allowed.has(owner))throw Error('Data module not entitled');if(!handles.has(owner))handles.set(owner,new ModuleDatabase(driver,scope,owner,allowed.get(owner)!,()=>{checkpoint();if(!lease.session.modules.includes(owner))throw Error('Data module not entitled');},work=>guard.run(scope,owner,allowed.get(owner)!,lease.signal,work)));return handles.get(owner)!;},dispose:async()=>{if(disposed)return;disposed=true;await driver.close(scope);}});
 }
+
+export type DatabaseSession=ReturnType<typeof createDatabaseSession>;
