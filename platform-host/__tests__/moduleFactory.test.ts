@@ -12,7 +12,7 @@ test('owned data view cannot expose another feature or account-wide disposal',()
 test('ports must match subject and entitled module; partial lifecycle does not become runnable',()=>{
  const create=jest.fn(()=>({id:'qr',requiresOnline:false,Screen:()=>null,init:async()=>{},activate:async()=>{},suspend:async()=>{},dispose:async()=>{}}));
  const factory=validateRemoteModuleFactory({id:'qr',version:'1.0.0',contract:'2.0.0',schema:2,create},artifact);
- const ports={lease:{session:{company:'alpha',user:'alice',modules:['qr']},assertCurrent(){}},data:{scope:{company:'beta',user:'bob'}}} as unknown as ModuleHostPorts;
+ const ports={lease:{session:{company:'alpha',user:'alice',modules:['qr']},assertCurrent(){}},data:{scope:{company:'beta',user:'bob'},module(){}},company(){},createOperationId(){return 'fixture';},requestAuthorizationCheck(){}} as unknown as ModuleHostPorts;
  expect(()=>factory.create(ports)).toThrow('subject');expect(create).not.toHaveBeenCalled();
  (ports.data as {scope:unknown}).scope={company:'alpha',user:'alice'};expect(factory.create(ports).id).toBe('qr');
  create.mockReturnValue({...create.mock.results[0].value,dispose:null});expect(()=>factory.create(ports)).toThrow('lifecycle');

@@ -49,6 +49,7 @@ jobs:
       - run: npm test -- --runInBand
       - run: npm run test:runtime
       - run: npm run test:remote-packages
+      - run: npm run test:qr-packages
       - uses: actions/checkout@v4
         with:
           repository: simpleriz2/LeaderProductAPI

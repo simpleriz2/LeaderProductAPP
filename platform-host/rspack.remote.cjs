@@ -2,6 +2,10 @@ const Repack = require('@callstack/repack');
 const path = require('node:path');
 const { DefinePlugin } = require('@rspack/core');
 const name = process.env.LP2_REMOTE;
+const profile=process.env.LP2_REMOTE_PROFILE||'probe';
+if(!['probe','business'].includes(profile))throw Error('Unknown remote profile');
+const business=profile==='business';
+if(business&&name!=='qr')throw Error('Business profile available only for QR');
 const version = process.env.LP2_PROBE_VERSION || '1.0.0';
 if (!['qr', 'help'].includes(name)) throw Error('LP2_REMOTE must be qr or help');
 module.exports = Repack.defineRspackConfig(({platform}) => ({
@@ -14,10 +18,10 @@ module.exports = Repack.defineRspackConfig(({platform}) => ({
     { test: /\.[cm]?[jt]sx?$/, type: 'javascript/auto', use: { loader: '@callstack/repack/babel-swc-loader', options: {} } },
     ...Repack.getAssetTransformRules(),
   ] },
-  plugins: [new DefinePlugin({ __LP2_PROBE_VERSION__: JSON.stringify(version), __LP2_PROBE_FAIL_STARTUP__: false }), new Repack.RepackPlugin({ extraChunks: [{ type: 'remote', outputPath: path.resolve(__dirname, 'build/remote-packages', name, platform) }] }), new Repack.plugins.ModuleFederationPluginV2({
+  plugins: [new DefinePlugin({ __LP2_MODULE_VERSION__: JSON.stringify(version), __LP2_PROBE_VERSION__: JSON.stringify(version), __LP2_PROBE_FAIL_STARTUP__: false }), new Repack.RepackPlugin({ extraChunks: [{ type: 'remote', outputPath: path.resolve(__dirname, 'build/remote-packages', name, platform) }] }), new Repack.plugins.ModuleFederationPluginV2({
     manifest: { additionalData: ({stats}) => { stats.metaData.buildInfo.buildVersion = version; return stats; } },
     name, filename: `${name}.container.bundle`, dts: false,
-    exposes: { './Screen': `./remotes/${name}.tsx` },
+    exposes: business?{'./Module':'./modules/qr/module.tsx'}:{ './Screen': `./remotes/${name}.tsx` },
     shared: {
       react: { singleton: true, eager: false, requiredVersion: '19.3.0', strictVersion: true },
       'react-native': { singleton: true, eager: false, requiredVersion: '0.88.1', strictVersion: true },

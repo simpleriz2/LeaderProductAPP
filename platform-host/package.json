@@ -24,7 +24,8 @@
     "dev:pilot-web": "node dev/web-host/start.cjs",
     "test:platform-variants": "node --experimental-strip-types --test dev/release/platformVariants.test.cjs",
     "test:company-window": "node --experimental-strip-types --test dev/http/companyWindow.test.cjs",
-    "test:qr-storage": "node --experimental-strip-types --test dev/qr/drafts.test.cjs dev/qr/createAttempts.test.cjs"
+    "test:qr-storage": "node --experimental-strip-types --test dev/qr/drafts.test.cjs dev/qr/createAttempts.test.cjs dev/qr/controller.test.cjs",
+    "test:qr-packages": "node --test dev/qr/packages.test.cjs"
   },
   "dependencies": {
     "react": "19.3.0",
