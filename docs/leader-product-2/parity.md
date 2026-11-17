@@ -1,6 +1,6 @@
 # Parity register — source scenarios, not acceptance claims
 
-Baseline is origin/dev; source existence and passing mocks do not prove runtime integration. New host currently shows bootstrap only. Every migrated scenario must keep Android and Web evidence distinct. No row below is accepted as migrated.
+Baseline is origin/dev; source existence and passing mocks do not prove runtime integration. Native App still shows bootstrap only; Web host now executes signed delivery probes with local update/recovery evidence. These probes do not implement QR/Help business scenarios. Every migrated scenario must keep Android and Web evidence distinct. No row below is accepted as migrated.
 
 | Area | Verified source entry/evidence | Required parity acceptance |
 | --- | --- | --- |
@@ -19,4 +19,6 @@ Baseline is origin/dev; source existence and passing mocks do not prove runtime 
 
 Detailed static route/Expo-package inventory: expo-and-routes.md; import evidence: module-graph.json. Every inherited Expo SDK component has explicit legacy/pending status; target host currently has none. Zero static JS imports does not prove a native/config-plugin package dead. Recovery/migration histories remain protected until replacement evidence exists.
 
-Next sequence: integrate secure session and service routing; durable native/Web storage/crypto/bootstrap adapters; trusted remote execution and update/recovery; move QR using platform navigation/files/media ports; then graph-driven independent areas. Existing source is retained until parity evidence. Stage 2 device profiling and Stage 3 external acceptance remain unfulfilled; no performance numbers or external SaaS readiness claimed.
+Next sequence: QR typed domain/Company/storage contracts and real feature migration using navigation/files/media ports; finish native host UI/device execution and platform lifecycle/worker adapters; then graph-driven independent areas. Foundation adapters and real Web probe update/recovery are already evidenced in baseline.md, not complete business parity. Existing source is retained until parity evidence. Stage 2 device profiling and Stage 3 external acceptance remain unfulfilled; no performance numbers or external SaaS readiness claimed.
+
+QR migration audit is expanded in qr-migration.md. Verified dev transport/contact/type mismatches are defects to correct with evidence, not behavior to freeze as parity. Cache-object bypass and public TEXT HTML were fixed in API7ee7399 without production access.
