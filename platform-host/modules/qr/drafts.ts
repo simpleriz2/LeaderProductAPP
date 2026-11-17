@@ -4,8 +4,8 @@ import type {SessionLease} from '../../core/sessionCoordinator';
 import type {DatabaseSession} from '../../database/moduleDatabase';
 import type {SchemaOwner} from '../../database/migrations';
 
-export const qrTypes=['PHONE','LINK','EMAIL','TEXT','WHATSAPP','TELEGRAM','CONTACT'] as const;
-export type QrType=typeof qrTypes[number];
+import {qrTypes,type QrType} from './contracts.ts';
+export {qrTypes,type QrType} from './contracts.ts';
 const fields=['phone','url','email','subject','body','text','message','username','firstname','lastname','org','website','contactAddress','note'] as const;
 export type QrFormFields=Partial<Record<typeof fields[number],string>>;
 /** Raw incomplete form values; submission validation/normalization belongs to QR's online command. */

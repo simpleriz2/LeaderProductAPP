@@ -226,3 +226,6 @@ Target TypeScript,104unit tests and actual cross-fork Company HTTP contract-wind
 
 ### 2026-11-17: first QR domain storage slice
 Target TS,104unit,9real SDK SQLite,4QR domain SQLite scenarios and runtime identity gate passed. Tests create isolated temp data, run the actual QR schema owner/SDK driver, reopen durable files and preserve unsent incomplete contact under rights changes. Browser/native UI/API business parity not claimed. No original databases/app storage read, no network submissions.
+
+### 2026-11-17: typed QR Company client evidence
+Target TS107unit (17suites),4actual QR SQLite storage scenarios and signed Central proof integration passed. Actual cross-fork Company+PG test using APP ServiceRouter/createWebHttpTransport/createQrCompanyClient passed (about250ms scenario); verified signed active assignment, token binding, idempotent create, edit/null, stale conflict, pause/delete/restore and pagination. Runtime response/command bounds checked. Native fingerprint/APK9 unchanged; no RN screen/device parity claimed. APP safe CI peer API pin updated to e9a0805 protocol.
