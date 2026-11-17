@@ -1,7 +1,7 @@
 import {utf8Size} from '../../core/utf8.ts';
 import {qrTypes,type QrType,type QrStatus,type QrDocument,type QrWrite,type QrCompanyPort} from './contracts.ts';
 export type {QrStatus,QrDocument,QrWrite,QrCompanyPort} from './contracts';
-export class QrCompanyError extends Error{constructor(readonly status:number,message:string){super(message);}}
+export class QrCompanyError extends Error{readonly status:number;constructor(status:number,message:string){super(message);this.status=status;}}
 const uuid=(value:unknown):value is string=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value);
 const documentId=(value:string)=>{if(!uuid(value))throw Error('Invalid QR document id');return value.toLowerCase();};
 const revision=(value:number)=>{if(!Number.isSafeInteger(value)||value<1)throw Error('Invalid QR revision');return value;};
@@ -19,6 +19,7 @@ function write(value:Partial<QrWrite>,partial=false):Partial<QrWrite>{
  const serialized=JSON.stringify(input,(_,next)=>{if(typeof next==='undefined'||typeof next==='function'||typeof next==='symbol'||typeof next==='bigint'||(typeof next==='number'&&!Number.isFinite(next)))throw Error('Invalid QR JSON');return next;});
  if(utf8Size(serialized)>192*1024)throw Error('QR command too large');return JSON.parse(serialized);
 }
+export const snapshotQrWrite=(value:QrWrite):QrWrite=>write(value) as QrWrite;
 export function createQrCompanyClient(port:QrCompanyPort){
  async function request(path:string,method:'GET'|'POST'|'PUT'|'DELETE',body?:unknown){
   const response=await port.execute(path,{method,body});

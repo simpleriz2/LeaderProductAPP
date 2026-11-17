@@ -1,3 +1,3 @@
 import type {SchemaOwner} from '../../database/migrations';
 /** Static DB-layer bootstrap history; no domain runtime, network, React or feature initialization. */
-export const qrSchemaOwner:SchemaOwner={module:'qr',base:1,initialize:async()=>{},migrations:[]};
+export const qrSchemaOwner:SchemaOwner={module:'qr',base:1,initialize:async()=>{},migrations:[{from:1,to:2,run:async()=>{}}]};
