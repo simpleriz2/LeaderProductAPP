@@ -1,5 +1,5 @@
 {
-  "androidVersionCode": 10,
+  "androidVersionCode": 11,
   "versionName": "0.1.0",
   "webHostVersion": 5,
   "sharedAbi": 1,
@@ -31,6 +31,9 @@
       1
     ],
     "operationIds": [
+      1
+    ],
+    "hostReload": [
       1
     ]
   }
