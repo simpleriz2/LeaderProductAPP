@@ -1,6 +1,7 @@
 package com.leaderproduct.app.fork
 
 import android.app.Application
+import com.leaderproduct.app.fork.platform.LeaderHostPackage
 import com.leaderproduct.app.fork.release.LeaderReleasePackage
 import com.leaderproduct.app.fork.network.LeaderHttpPackage
 import com.leaderproduct.app.fork.storage.LeaderCredentialsPackage
@@ -20,6 +21,7 @@ class MainApplication : Application(), ReactApplication {
           add(LeaderCredentialsPackage())
           add(LeaderHttpPackage())
           add(LeaderReleasePackage())
+          add(LeaderHostPackage())
         },
     )
   }

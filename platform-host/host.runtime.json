@@ -1,0 +1,38 @@
+{
+  "android": {
+    "version": 1,
+    "versionName": "0.1.0",
+    "runtime": "lp2-android-d8911b2e2fb477ee280ef47d",
+    "nativeFingerprint": "be0220fa8bff93a67980539df68c6e5519b9ffda020ef6eae9e7136422ac15eb",
+    "capabilities": {
+      "secureSession": [
+        1
+      ],
+      "http": [
+        1
+      ],
+      "releaseCrypto": [
+        1
+      ],
+      "hostInfo": [
+        1
+      ]
+    },
+    "libraries": {
+      "@callstack/repack": "5.4.4",
+      "react": "19.3.0",
+      "react-native": "0.88.1",
+      "react-native-safe-area-context": "5.11.1"
+    }
+  },
+  "web": {
+    "version": 1,
+    "runtime": "lp2-web-201b5d2d7e8dd718645fd0bf",
+    "libraries": {
+      "react": "19.3.0",
+      "react-dom": "19.3.0",
+      "react-native-web": "0.21.4"
+    }
+  },
+  "sharedAbi": 1
+}

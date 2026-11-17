@@ -73,6 +73,8 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+def hostMetadata = new groovy.json.JsonSlurper().parse(file("../../host.runtime.json"))
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -83,8 +85,11 @@ android {
         applicationId "com.leaderproduct.app.fork"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode hostMetadata.android.version
+        versionName hostMetadata.android.versionName
+        buildConfigField "String", "LP2_RUNTIME_ID", groovy.json.JsonOutput.toJson(hostMetadata.android.runtime)
+        buildConfigField "String", "LP2_NATIVE_FINGERPRINT", groovy.json.JsonOutput.toJson(hostMetadata.android.nativeFingerprint)
+        buildConfigField "String", "LP2_CAPABILITIES_JSON", groovy.json.JsonOutput.toJson(groovy.json.JsonOutput.toJson(hostMetadata.android.capabilities))
     }
     signingConfigs {
         debug {
@@ -120,3 +125,9 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+tasks.register("verifyHostRuntime", Exec) {
+    workingDir rootProject.projectDir.parentFile
+    commandLine "node", "scripts/hostRuntime.cjs"
+}
+tasks.named("preBuild").configure { dependsOn "verifyHostRuntime" }

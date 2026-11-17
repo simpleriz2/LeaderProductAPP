@@ -33,12 +33,17 @@ jobs:
       NODE_OPTIONS: --max-old-space-size=4096
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: platform-host/package-lock.json
       - run: npm ci
+      - run: node scripts/hostRuntime.cjs --base-ref "$BASE_SHA"
+        env:
+          BASE_SHA: ${{ github.event.before || github.event.pull_request.base.sha }}
       - run: npx tsc --noEmit
       - run: npm test -- --runInBand
       - run: npm run test:remote-packages
@@ -58,6 +63,8 @@ jobs:
       NODE_OPTIONS: --max-old-space-size=2048
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -68,6 +75,9 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: npm ci
+      - run: node scripts/hostRuntime.cjs --base-ref "$BASE_SHA"
+        env:
+          BASE_SHA: ${{ github.event.before || github.event.pull_request.base.sha }}
       - run: node scripts/local-keystore.cjs
       - run: ./gradlew :app:testDebugUnitTest :app:assembleRelease --no-daemon --max-workers=1 -PreactNativeArchitectures=x86_64 -Dorg.gradle.jvmargs="-Xmx2048m -XX:MaxMetaspaceSize=512m" -Pkotlin.compiler.execution.strategy=in-process
         working-directory: platform-host/android
