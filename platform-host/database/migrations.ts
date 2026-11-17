@@ -4,6 +4,8 @@ import type {DataDriver,DataScope} from './contracts';
 import type {SessionLease} from '../core/sessionCoordinator';
 import type {Activation,ReleaseSet} from '../core/releaseSet';
 export type SchemaOwner={module:string;base:1;initialize(database:ModuleDatabase):Promise<void>;migrations:readonly{from:number;to:number;run(database:ModuleDatabase):Promise<void>}[]};
+/** Schema zero means no subject data; retained old records are not deleted or exposed to that module. */
+export const schemasForRelease=(release:ReleaseSet):Record<string,number>=>Object.fromEntries(release.artifacts.filter(a=>a.schema>0).map(a=>[a.module,a.schema]));
 /** Domain-owned migration callbacks receive ONLY their own typed module collections, never SQL. */
 export async function prepareDataGeneration(driver:DataDriver,lease:SessionLease,release:ReleaseSet,previous:Activation|null,owners:readonly SchemaOwner[],createId:()=>string):Promise<string>{
   const checkpoint=()=>{lease.assertCurrent();if(lease.session.company!==release.company)throw Error('Wrong migration tenant');};checkpoint();
@@ -13,10 +15,11 @@ export async function prepareDataGeneration(driver:DataDriver,lease:SessionLease
     owner.migrations.forEach((step,index)=>{if(step.from!==index+1||step.to!==index+2||!step.run)throw Error('Migration history must retain ordered single steps');});registry.set(owner.module,owner);
   }
   const source:DataScope|null=previous?{company:previous.company,user:previous.user,generation:previous.dataGeneration}:null;
-  if(source){await driver.verify(source,Object.fromEntries(previous!.release.artifacts.map(a=>[a.module,a.schema])));checkpoint();}
+  if(source){await driver.verify(source,schemasForRelease(previous!.release));checkpoint();}
   const plans=[];
   for(const artifact of release.artifacts){
     if(!lease.session.modules.includes(artifact.module))throw Error('Migration module not entitled');
+    if(artifact.schema===0)continue;
     const owner=registry.get(artifact.module);if(!owner||artifact.schema<1||artifact.schema>owner.migrations.length+1)throw Error('Missing owned migration history');
     const from=source?await driver.schema(source,artifact.module):0;checkpoint();
     if(from>artifact.schema)throw Error('Destructive data downgrade denied');plans.push({artifact,owner,from});
@@ -36,6 +39,6 @@ export async function prepareDataGeneration(driver:DataDriver,lease:SessionLease
       await driver.write(target,{module:artifact.module,expectedSchema:current,targetSchema:step.to,changes:[]});checkpoint();current=step.to;
     }
   }
-  await driver.verify(target,Object.fromEntries(release.artifacts.map(a=>[a.module,a.schema])));checkpoint();
+  await driver.verify(target,schemasForRelease(release));checkpoint();
   return generation;
 }

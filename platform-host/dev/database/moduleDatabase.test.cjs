@@ -69,3 +69,10 @@ test('failed migration or logout never changes the source generation or leaves a
  const revoke=owners();revoke[0].migrations[0].run=async()=>{f.controller.abort();};await assert.rejects(prepareDataGeneration(f.driver,f.lease,release,activation(f),revoke,()=> 'revoked-candidate'),/Stale/);
  assert.equal(JSON.parse((await f.driver.read(f.scope,'orders',1,'drafts','one')).payload).text,'must survive');
 });
+test('same-schema and stateless releases reuse verified data without deleting retained records',async t=>{
+ const f=await fixture(t),orders=f.session.module('orders'),drafts=orders.collection('drafts',codec);await orders.transaction([drafts.put('one',{text:'retained'},null)]);
+ const previous=activation(f);const noCopy=()=>{throw Error('Unexpected generation copy');};
+ assert.equal(await prepareDataGeneration(f.driver,f.lease,previous.release,previous,owners(),noCopy),f.scope.generation);
+ const stateless={company:'alpha',artifacts:[{module:'orders',schema:0},{module:'help',schema:1}]};assert.equal(await prepareDataGeneration(f.driver,f.lease,stateless,previous,owners(),noCopy),f.scope.generation);assert.equal((await drafts.get('one')).value.text,'retained');
+ const {schemasForRelease}=require('../../database/migrations.ts');assert.deepEqual(schemasForRelease(stateless),{help:1});
+});

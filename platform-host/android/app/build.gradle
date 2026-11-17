@@ -80,6 +80,17 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
+    testOptions {
+        unitTests.includeAndroidResources = true
+        unitTests.all {
+            maxHeapSize = "1024m"
+            maxParallelForks = 1
+            systemProperty "robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2"
+            ["https.proxyHost", "https.proxyPort", "http.proxyHost", "http.proxyPort"].each { key ->
+                if (System.getProperty(key)) systemProperty key, System.getProperty(key)
+            }
+        }
+    }
     namespace "com.leaderproduct.app.fork"
     defaultConfig {
         applicationId "com.leaderproduct.app.fork"
@@ -116,6 +127,7 @@ android {
 dependencies {
     implementation("com.google.crypto.tink:tink-android:1.24.0")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.18")
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 

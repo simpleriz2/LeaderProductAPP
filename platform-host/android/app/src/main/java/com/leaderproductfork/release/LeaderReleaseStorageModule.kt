@@ -1,8 +1,7 @@
 package com.leaderproduct.app.fork.release
 
-import android.system.Os
-import android.system.OsConstants
 import android.util.AtomicFile
+import com.leaderproduct.app.fork.storage.DurableFiles
 import android.util.Base64
 import com.facebook.react.bridge.*
 import org.json.JSONObject
@@ -18,26 +17,7 @@ class LeaderReleaseStorageModule(context: ReactApplicationContext) : ReactContex
   private val executor = ThreadPoolExecutor(1,1,0L,TimeUnit.MILLISECONDS,ArrayBlockingQueue<Runnable>(16))
   private val files = ReleaseFiles(root, ::writeAtomic)
   override fun getName() = "LeaderReleaseStorage"
-  private fun syncDirectory(directory: File) {
-    require(directory.isDirectory)
-    val descriptor = Os.open(directory.absolutePath,OsConstants.O_RDONLY,0)
-    try { Os.fsync(descriptor) } finally { Os.close(descriptor) }
-  }
-  private fun ensureDirectory(directory: File) {
-    if(directory.isDirectory) return
-    val parent = directory.parentFile ?: error("Missing private parent")
-    ensureDirectory(parent)
-    check(directory.mkdir() || directory.isDirectory)
-    syncDirectory(parent)
-  }
-  private fun writeAtomic(file: File, bytes: ByteArray) {
-    ensureDirectory(file.parentFile!!)
-    val atomic = AtomicFile(file); val stream = atomic.startWrite()
-    try { stream.write(bytes); atomic.finishWrite(stream) }
-    catch(error: Exception) { atomic.failWrite(stream); throw error }
-    // AtomicFile synchronizes file contents; also persist the directory entry after rename.
-    syncDirectory(file.parentFile!!)
-  }
+  private fun writeAtomic(file: File, bytes: ByteArray)=DurableFiles.writeBytes(file,bytes)
   private fun pointer(company: String, user: String) = File(root,"pointers/${ReleaseFiles.part(company)}/${ReleaseFiles.part(user)}.json")
   private fun state(company: String, user: String): JSONObject {
     val atomic = AtomicFile(pointer(company,user))

@@ -1,6 +1,7 @@
 package com.leaderproduct.app.fork
 
 import android.app.Application
+import com.leaderproduct.app.fork.database.LeaderDatabasePackage
 import com.leaderproduct.app.fork.platform.LeaderHostPackage
 import com.leaderproduct.app.fork.release.LeaderReleasePackage
 import com.leaderproduct.app.fork.network.LeaderHttpPackage
@@ -22,6 +23,7 @@ class MainApplication : Application(), ReactApplication {
           add(LeaderHttpPackage())
           add(LeaderReleasePackage())
           add(LeaderHostPackage())
+          add(LeaderDatabasePackage())
         },
     )
   }

@@ -1,4 +1,4 @@
-import {identifier,recordId,validateScope,validateBatch,jsonPayload} from './contracts.ts';
+import {identifier,recordId,validateScope,validateBatch,jsonPayload,utf8Size} from './contracts.ts';
 import type {DataDriver,DataScope,DataRow,DataBatch,WriteReceipt} from './contracts';
 /** Subject-data backend; bootstrap uses another database and stays available on domain failure. */
 export function createIndexedDbDriver(factory:IDBFactory=globalThis.indexedDB):DataDriver{
@@ -27,7 +27,7 @@ export function createIndexedDbDriver(factory:IDBFactory=globalThis.indexedDB):D
   const checked=(row:DataRow,id?:string)=>{if(!row||typeof row.id!=='string'||(id!==undefined&&row.id!==id)||!Number.isSafeInteger(row.revision)||row.revision<1)throw Error('Corrupt data row');recordId(row.id);jsonPayload(row.payload);return row;};
   return{
     close:async scope=>{validateScope(scope);if(opened){const db=await opened;db.close();opened=null;}},
-    fork:async(source,target)=>{validateScope(target);if(source){validateScope(source);if(source.company!==target.company||source.user!==target.user)throw Error('Cross-tenant data copy');}
+    fork:async(source,target)=>{validateScope(target);if(source!==null){validateScope(source);if(source.company!==target.company||source.user!==target.user)throw Error('Cross-tenant data copy');}
       await transaction<void>('readwrite',(tx,done,fail)=>request(tx.objectStore('generations'),key(target),existing=>{
         if(existing)throw Error('Generation already exists');
         const initialize=()=>{tx.objectStore('generations').put({physical:1},key(target));done();};
@@ -42,7 +42,7 @@ export function createIndexedDbDriver(factory:IDBFactory=globalThis.indexedDB):D
     read:async(scope,module,version,collection,id)=>{identifier(collection);const rowKey=[...key(scope),identifier(module),collection,encoded(id)];return transaction<DataRow|null>('readonly',(tx,done,fail)=>versioned(tx,scope,module,version,()=>request(tx.objectStore('rows'),rowKey,row=>done(row===undefined?null:checked(row,id)),fail),fail));},
     list:async(scope,module,version,collection,limit,after)=>{identifier(collection);if(!Number.isSafeInteger(limit)||limit<1||limit>256)throw Error('Invalid page size');const prefix=[...key(scope),identifier(module),collection];const bounds=range(prefix,after===undefined?undefined:encoded(after));
       return transaction<DataRow[]>('readonly',(tx,done,fail)=>versioned(tx,scope,module,version,()=>{
-        const rows:DataRow[]=[];const query=tx.objectStore('rows').openCursor(bounds);query.onsuccess=()=>{try{const cursor=query.result;if(!cursor||rows.length>=limit){done(rows);return;}rows.push(checked(cursor.value));cursor.continue();}catch(error){fail(error);}};
+        const rows:DataRow[]=[];let bytes=0;const query=tx.objectStore('rows').openCursor(bounds);query.onsuccess=()=>{try{const cursor=query.result;if(!cursor||rows.length>=limit){done(rows);return;}const row=checked(cursor.value);if(factory.cmp(cursor.key,[...prefix,encoded(row.id)])!==0)throw Error('Corrupt record key');bytes+=utf8Size(row.payload);if(bytes>4*1024*1024)throw Error('Data page too large');rows.push(row);cursor.continue();}catch(error){fail(error);}};
       },fail));
     },
     write:async(scope,input:DataBatch)=>{const batch=structuredClone(input);validateBatch(batch);key(scope);
