@@ -68,3 +68,10 @@ test('code rollback keeps current data generation; incompatible schema rollback 
   const newer=f.release(3);newer.artifacts.forEach(a=>a.schema=2);const active=await stageAndActivate(f.signed(newer),f.context,f.ports);
   await assert.rejects(rollbackCode(first.signed,f.context,f.ports),/compatible current data schema/);assert.deepEqual(await f.storage.current('alpha','alice'),active);preserved(f,active);
 });
+test('cache is private per company/user and a corrupt cached blob is repaired only from verified bytes',async t=>{
+  const f=fixture(t);const first=await stageAndActivate(f.signed(f.release(1)),f.context,f.ports);seed(f,first);const file=first.release.artifacts[0];
+  assert.equal(await f.storage.cachedFile('beta','bob',file),null);assert.equal(await f.storage.cachedFile('alpha','bob',file),null);
+  fs.writeFileSync(f.storage.blobFile('alpha','alice',file.digest),'corrupt-cache');let downloaded=[];const original=f.ports.download;
+  const repaired=await stageAndActivate(f.signed({...f.release(1),id:'repair-2'}),f.context,{...f.ports,download:async key=>{downloaded.push(key);return original(key);}});
+  assert.deepEqual(downloaded,[file.path]);f.storage.readVerifiedBytes(repaired);preserved(f,repaired);
+});

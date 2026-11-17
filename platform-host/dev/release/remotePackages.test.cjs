@@ -12,7 +12,8 @@ test('actual Re.Pack remote closures are immutable, complete and activated only 
   // Exercise the host build between remote builds and activation.
   execFileSync(process.execPath,[path.join(__dirname,'../../node_modules/@react-native-community/cli/build/bin.js'),'bundle','--platform','android','--dev','false','--entry-file','index.js','--bundle-output','build/android/index.android.bundle','--assets-dest','build/android'],{cwd:path.join(__dirname,'../..'),stdio:'pipe',maxBuffer:8*1024*1024});
   assert.equal(JSON.parse(fs.readFileSync(path.join(__dirname,'../../build/compiled-remotes/help/android/mf-manifest.json'))).name,'help');
-  const second=await stageAndActivate(signed(release('set-2',qr2)),context,ports);store.readVerifiedBytes(first);store.readVerifiedBytes(second);assert.equal((await store.lastGood('alpha','alice')).release.id,'set-1');
-  const corrupt={...ports,download:async key=>key===qr1.assets[0].path?Buffer.from('corrupt-chunk'):ports.download(key)};
+  let downloads=[];const originalDownload=ports.download;ports.download=async key=>{downloads.push(key);return originalDownload(key);};
+  const second=await stageAndActivate(signed(release('set-2',qr2)),context,ports);store.readVerifiedBytes(first);store.readVerifiedBytes(second);assert.ok(downloads.length>0);const helpKeys=new Set(artifactFiles({artifacts:[help1]}).map(f=>f.path));assert.ok(downloads.every(key=>!helpKeys.has(key)));assert.equal((await store.lastGood('alpha','alice')).release.id,'set-1');
+  const corrupt={...ports,storage:{...store,cachedFile:async()=>null},download:async key=>key===qr1.assets[0].path?Buffer.from('corrupt-chunk'):ports.download(key)};
   await assert.rejects(stageAndActivate(signed(release('set-3',qr1)),context,corrupt));assert.equal((await store.current('alpha','alice')).release.id,'set-2');
 });

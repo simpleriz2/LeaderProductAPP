@@ -16,6 +16,10 @@ function openDiskStore(root, failpoint = () => {}) {
   const read = (company, user, field = 'current') => { safePart(company); safePart(user); const value = db.prepare(`SELECT ${field} FROM activation WHERE company=? AND user=?`).get(company,user)?.[field]; return value ? JSON.parse(value) : null; };
   return {
     current: async (company,user) => read(company,user),
+    cachedFile: async (company,user,file) => {
+      try { return fs.readFileSync(blobFile(company,user,file.digest)); }
+      catch(error) { if(error.code==='ENOENT')return null;throw error; }
+    },
     lastGood: async (company,user) => read(company,user,'lkg'),
     stage: async (ns, artifact, bytes) => {
       if(digest(bytes) !== artifact.digest) throw Error('Stage digest mismatch');

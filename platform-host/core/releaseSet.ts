@@ -48,6 +48,7 @@ export async function verifyRelease(signed: SignedRelease, context: ReleaseConte
 export type Activation = { company: string; user: string; release: ReleaseSet; signed: SignedRelease; dataGeneration: string };
 export interface ReleaseStorage {
   current(company: string, user: string): Promise<Activation | null>;
+  cachedFile(company: string, user: string, file: ArtifactFile): Promise<Uint8Array | null>;
   stage(namespace: string, artifact: ArtifactFile, bytes: Uint8Array): Promise<void>;
   discard(namespace: string): Promise<void>;
   /** Must atomically commit code + data pointers iff expected still matches. Keep previous LKG. */
@@ -65,12 +66,15 @@ export interface ReleasePorts {
 export async function stageAndActivate(signed: SignedRelease, context: ReleaseContext, ports: ReleasePorts): Promise<Activation> {
   const release = await verifyRelease(signed, context, ports.trust);
   const previous = await ports.storage.current(context.company, context.user);
+  requireValue(!previous || (previous.company === context.company && previous.user === context.user), 'Wrong stored namespace');
   const attempt = ports.createAttemptId();
   requireValue(identifier(attempt), 'Invalid attempt id');
   const namespace = `${context.company}/${context.user}/${release.id}/${attempt}`;
   try {
     for (const file of artifactFiles(release)) {
-      const bytes = await ports.download(file.path);
+      const cached = await ports.storage.cachedFile(context.company, context.user, file);
+      const validCache = cached !== null && cached.length === file.size && await ports.trust.sha256(cached) === file.digest;
+      const bytes = validCache ? cached : await ports.download(file.path);
       requireValue(bytes.length === file.size, 'Artifact size mismatch');
       requireValue(await ports.trust.sha256(bytes) === file.digest, 'Artifact digest mismatch');
       await ports.storage.stage(namespace, file, bytes);

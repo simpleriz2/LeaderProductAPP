@@ -21,6 +21,7 @@ beforeEach(() => {
     prepareData: async () => 'generation-1',
     storage: {
       current: async () => current,
+      cachedFile: async () => null,
       stage: async (ns, _, data) => { staged.set(ns, [...(staged.get(ns) || []), data]); },
       discard: async ns => { staged.delete(ns); },
       commit: async (expected, next, ns) => { if(expected !== current) throw Error('Concurrent activation'); if(staged.get(ns)?.length !== 2) throw Error('Incomplete'); current = next; },
