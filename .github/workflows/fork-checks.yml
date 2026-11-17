@@ -49,6 +49,20 @@ jobs:
       - run: npm test -- --runInBand
       - run: npm run test:runtime
       - run: npm run test:remote-packages
+      - uses: actions/checkout@v4
+        with:
+          repository: simpleriz2/LeaderProductAPI
+          # Exact compatible fork protocol; never follow upstream/main or floating latest.
+          ref: 1104201ba21f4a28fe91cfd7dd6b4d45fca1d516
+          path: partner-api
+          sparse-checkout: dev/platform-pilot
+          persist-credentials: false
+      - run: npm run test:pilot-session
+        env:
+          LP2_API_PILOT_ROOT: ${{ github.workspace }}/partner-api
+      - run: npm run test:pilot-delivery
+        env:
+          LP2_API_PILOT_ROOT: ${{ github.workspace }}/partner-api
       - run: npm run test:crypto
       - run: npm run test:http
       - run: npm run test:recovery

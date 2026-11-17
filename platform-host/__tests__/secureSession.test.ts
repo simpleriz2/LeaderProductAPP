@@ -1,20 +1,32 @@
-import { createSecureSessionStore } from '../adapters/secureSession.native';
-const session = { company: 'alpha', user: 'alice', modules: ['qr'], confirmation: 'central-1' };
-test('validates scoped session shape and preserves only allowed fields before native encryption', async () => {
-  const bridge = { readSession: jest.fn(async () => JSON.stringify(session)), writeSession: jest.fn(async (_value: string) => undefined), clearSession: jest.fn(async () => undefined) };
-  const store = createSecureSessionStore(bridge);
-  expect(await store.loadLastConfirmed()).toEqual(session);
-  await store.saveConfirmed(session); expect(JSON.parse(bridge.writeSession.mock.calls[0][0])).toEqual(session);
-  await store.clearSession(); expect(bridge.clearSession).toHaveBeenCalledTimes(1);
+import {createSecureSessionStore} from '../adapters/secureSession.native';
+import {createWebTrust} from '../adapters/trust.web';
+import {generateKeyPairSync,sign,webcrypto} from 'node:crypto';
+const session={company:'alpha',user:'alice',modules:['qr'],confirmation:'central-1'};
+const pair=generateKeyPairSync('ed25519'),root=Buffer.from(pair.publicKey.export({format:'jwk'}).x!,'base64url').toString('base64');
+const trust=createWebTrust({root},webcrypto.subtle as unknown as SubtleCrypto);
+const grant=(value:unknown=session,purpose='lp2-offline-session')=>{const payload=JSON.stringify({format:1,purpose,issuedAt:Date.now(),session:value});return{keyId:'root',payload,signature:sign(null,Buffer.from(payload),pair.privateKey).toString('base64')};};
+test('persists ONLY a matching signed Central grant inside native encryption',async()=>{
+ const signed=grant(),bridge={readSession:jest.fn(async()=>JSON.stringify(signed)),writeSession:jest.fn(async(_value:string)=>{}),clearSession:jest.fn(async()=>{})},store=createSecureSessionStore(trust,bridge);
+ expect(await store.loadLastConfirmed()).toEqual(session);await expect(store.saveConfirmed(session)).rejects.toThrow('matching online');
+ expect(await store.acceptOnlineGrant(signed)).toEqual(session);await store.saveConfirmed(session);expect(JSON.parse(bridge.writeSession.mock.calls[0][0])).toEqual(signed);
+ await store.clearSession();await expect(store.saveConfirmed(session)).rejects.toThrow('matching online');expect(bridge.clearSession).toHaveBeenCalledTimes(1);
 });
-test('secure read/write failure propagates without plaintext fallback or data clearing', async () => {
-  const bridge = { readSession: jest.fn(async () => { throw Error('Keystore unavailable'); }), writeSession: jest.fn(async () => { throw Error('Disk error'); }), clearSession: jest.fn(async () => undefined) };
-  const store = createSecureSessionStore(bridge);
-  await expect(store.loadLastConfirmed()).rejects.toThrow('Keystore unavailable');
-  await expect(store.saveConfirmed(session)).rejects.toThrow('Disk error'); expect(bridge.clearSession).not.toHaveBeenCalled();
+test('secure read/write failure propagates without plaintext fallback or data clearing',async()=>{
+ const bridge={readSession:jest.fn(async()=>{throw Error('Keystore unavailable');}),writeSession:jest.fn(async()=>{throw Error('Disk error');}),clearSession:jest.fn(async()=>{})},store=createSecureSessionStore(trust,bridge);
+ await expect(store.loadLastConfirmed()).rejects.toThrow('Keystore unavailable');await store.acceptOnlineGrant(grant());await expect(store.saveConfirmed(session)).rejects.toThrow('Disk error');expect(bridge.clearSession).not.toHaveBeenCalled();
 });
-test('corrupt namespace and duplicate module rights are rejected', async () => {
-  const bridge = { readSession: async () => JSON.stringify({...session,company:'../beta'}),writeSession:jest.fn(async()=>undefined),clearSession:async()=>undefined };
-  const store=createSecureSessionStore(bridge);await expect(store.loadLastConfirmed()).rejects.toThrow('Invalid confirmed');
-  await expect(store.saveConfirmed({...session,modules:['qr','qr']})).rejects.toThrow('Invalid confirmed');expect(bridge.writeSession).not.toHaveBeenCalled();
+test('unsigned/tampered/wrong-purpose or malformed scoped rights cannot restore or be saved',async()=>{
+ let raw=JSON.stringify(session);const bridge={readSession:async()=>raw,writeSession:jest.fn(async()=>{}),clearSession:async()=>{}},store=createSecureSessionStore(trust,bridge);
+ await expect(store.loadLastConfirmed()).rejects.toThrow('envelope');
+ const signed=grant();raw=JSON.stringify({...signed,payload:signed.payload.replace('alice','carol')});await expect(store.loadLastConfirmed()).rejects.toThrow('Untrusted');
+ await expect(store.acceptOnlineGrant(grant(session,'release'))).rejects.toThrow('purpose');
+ await expect(store.acceptOnlineGrant(grant({...session,company:'../beta'}))).rejects.toThrow('Invalid confirmed');
+ await expect(store.acceptOnlineGrant(grant({...session,modules:['qr','qr']}))).rejects.toThrow('Invalid confirmed');
+ await store.acceptOnlineGrant(signed);await expect(store.saveConfirmed({...session,user:'carol'})).rejects.toThrow('matching online');expect(bridge.writeSession).not.toHaveBeenCalled();
+});
+test('logout during pending signature verification cannot resurrect an accepted online proof',async()=>{
+ let release!:()=>void;const blocked=new Promise<void>(resolve=>{release=resolve;});
+ const delayed={...trust,verifyEd25519:async(...args:Parameters<typeof trust.verifyEd25519>)=>{await blocked;return trust.verifyEd25519(...args);}};
+ const store=createSecureSessionStore(delayed,{readSession:async()=>null,writeSession:async()=>{},clearSession:async()=>{}});
+ const pending=store.acceptOnlineGrant(grant());await store.clearSession();release();await expect(pending).rejects.toThrow('Superseded');await expect(store.saveConfirmed(session)).rejects.toThrow('matching online');
 });
